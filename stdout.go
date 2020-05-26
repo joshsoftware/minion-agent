@@ -42,13 +42,26 @@ func main() {
 	cmd := exec.Command("/Users/jah/Projects/minion/agent/infinity")
 
 	stdout, _ := cmd.StdoutPipe()
+	stderr, _ := cmd.StderrPipe()
 	cmd.Start()
 
-	scanner := bufio.NewScanner(stdout)
-	scanner.Split(bufio.ScanWords)
-	for scanner.Scan() {
-		m := scanner.Text()
-		fmt.Println(m)
-	}
+	STDOUTscanner := bufio.NewScanner(stdout)
+	STDERRscanner := bufio.NewScanner(stderr)
+	STDOUTscanner.Split(bufio.ScanWords)
+	STDERRscanner.Split(bufio.ScanWords)
+	go func() {
+		for STDOUTscanner.Scan() {
+			m := STDOUTscanner.Text()
+			fmt.Println(m)
+		}
+	}()
+
+	go func() {
+		for STDERRscanner.Scan() {
+			m := STDERRscanner.Text()
+			fmt.Println(m)
+		}
+	}()
+
 	cmd.Wait()
 }
