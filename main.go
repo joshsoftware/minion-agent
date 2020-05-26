@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
@@ -10,7 +11,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/fatih/color"
@@ -25,8 +28,8 @@ type session struct {
 // CommandOutput - an object holding the output from stderr or stdout, and the
 // time at which that output occurred.
 type CommandOutput struct {
-	Output string    `json:"output"`
-	At     time.Time `json:"at"`
+	Output string `json:"output"`
+	At     int64  `json:"at"`
 }
 
 // Command - represents a command to be issued by this agent
@@ -37,9 +40,17 @@ type Command struct {
 	Command     string          `json:"command"`
 	STDERR      []CommandOutput `json:"stderr"`
 	STDOUT      []CommandOutput `json:"stdout"`
-	CreatedAt   int             `json:"created_at"`
-	StartedAt   int             `json:"started_at"`
-	CompletedAt int             `json:"completed_at"`
+	CreatedAt   int64           `json:"created_at"`
+	StartedAt   int64           `json:"started_at"`
+	CompletedAt int64           `json:"completed_at"`
+}
+
+// GetArgs - given a command, we want an array of its arguments. The first one
+// will always be the command itself (e.g. 'ls'). Everything after that are
+// arguments to that command.
+func (c *Command) GetArgs() (args []string) {
+	args = strings.Split(c.Command, " ")
+	return
 }
 
 // NewCommands - used when the api has new commands for us to execute
@@ -48,6 +59,7 @@ type NewCommands struct {
 	ServerID string `json:"server_id"`
 }
 
+// Config - used to represent the parameters in config.json
 type Config struct {
 	Location string `json:"location"`
 	ServerID string `json:"server_id"`
@@ -103,6 +115,64 @@ func bytesToFormattedHex(bytes []byte) string {
 	return regexp.MustCompile("(..)").ReplaceAllString(text, "$1 ")
 }
 
+func (s *session) executeCommand(c Command) (err error) {
+	args := c.GetArgs()
+	cmd := exec.Command(args[0])
+
+	stderr, _ := cmd.StderrPipe()
+	stdout, _ := cmd.StdoutPipe()
+
+	// Document our start time
+	c.StartedAt = time.Now().Unix()
+
+	cmd.Start()
+
+	STDOUTscanner := bufio.NewScanner(stdout)
+	STDERRscanner := bufio.NewScanner(stderr)
+	STDOUTscanner.Split(bufio.ScanLines)
+	STDERRscanner.Split(bufio.ScanLines)
+
+	go func() {
+		for STDOUTscanner.Scan() {
+			m := STDOUTscanner.Text()
+			// TODO: Serialize this into JSON on the command obj and re-send it
+			// to the websocket
+			out := CommandOutput{Output: m, At: time.Now().Unix()}
+			c.STDOUT = append(c.STDOUT, out)
+			fmt.Printf("%+v\n", c)
+
+		}
+	}()
+
+	go func() {
+		for STDERRscanner.Scan() {
+			m := STDERRscanner.Text()
+			// TODO: Serialize this into JSON on the command obj and re-send it
+			// to the websocket
+			out := CommandOutput{Output: m, At: time.Now().Unix()}
+			c.STDERR = append(c.STDERR, out)
+			fmt.Printf("%+v\n", c)
+		}
+	}()
+
+	cmd.Wait()
+
+	// Document when the command finished
+	c.CompletedAt = time.Now().Unix()
+
+	return
+}
+
+func (s *session) writeWebSocket(msg string) {
+	err := s.ws.WriteMessage(websocket.TextMessage, []byte(msg))
+	if err != nil {
+		log.Println("Cannot write message to websocket")
+		log.Println("Message: ", msg)
+		log.Println(err)
+	}
+	return
+}
+
 func (s *session) readWebsocket() {
 	rxSprintf := color.New(color.FgGreen).SprintfFunc()
 
@@ -140,7 +210,7 @@ func (s *session) readWebsocket() {
 			go func() {
 				sub := NewCommands{Action: "new_commands", ServerID: "abc123"} // TODO: Replace this with a real server id
 				subjson, err := json.Marshal(sub)
-				err = s.ws.WriteMessage(websocket.TextMessage, []byte(subjson))
+				s.writeWebSocket(string(subjson))
 				check(err)
 				fmt.Printf("%+v\n", sub)
 			}()
@@ -153,6 +223,7 @@ func (s *session) readWebsocket() {
 			newCmd := Command{}
 			err = json.Unmarshal(newVal, &newCmd)
 			check(err)
+			go s.executeCommand(newCmd)
 		case "update_command":
 			fmt.Printf("%+v\n", m)
 		default:
