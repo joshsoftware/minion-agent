@@ -43,6 +43,7 @@ type Command struct {
 	CreatedAt   int64           `json:"created_at"`
 	StartedAt   int64           `json:"started_at"`
 	CompletedAt int64           `json:"completed_at"`
+	Action      string          `json:"action"`
 }
 
 // GetArgs - given a command, we want an array of its arguments. The first one
@@ -139,8 +140,10 @@ func (s *session) executeCommand(c Command) (err error) {
 			// to the websocket
 			out := CommandOutput{Output: m, At: time.Now().Unix()}
 			c.STDOUT = append(c.STDOUT, out)
-			fmt.Printf("%+v\n", c)
-
+			c.Action = "update_command"
+			jstr, err := json.Marshal(c)
+			check(err)
+			s.writeWebSocket(string(jstr))
 		}
 	}()
 
@@ -150,8 +153,11 @@ func (s *session) executeCommand(c Command) (err error) {
 			// TODO: Serialize this into JSON on the command obj and re-send it
 			// to the websocket
 			out := CommandOutput{Output: m, At: time.Now().Unix()}
+			c.Action = "update_command"
 			c.STDERR = append(c.STDERR, out)
-			fmt.Printf("%+v\n", c)
+			jstr, err := json.Marshal(c)
+			check(err)
+			s.writeWebSocket(string(jstr))
 		}
 	}()
 
@@ -212,7 +218,6 @@ func (s *session) readWebsocket() {
 				subjson, err := json.Marshal(sub)
 				s.writeWebSocket(string(subjson))
 				check(err)
-				fmt.Printf("%+v\n", sub)
 			}()
 		case "output_command":
 			fmt.Printf("%+v\n", m)
