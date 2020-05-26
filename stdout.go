@@ -47,8 +47,8 @@ func main() {
 
 	STDOUTscanner := bufio.NewScanner(stdout)
 	STDERRscanner := bufio.NewScanner(stderr)
-	STDOUTscanner.Split(bufio.ScanWords)
-	STDERRscanner.Split(bufio.ScanWords)
+	STDOUTscanner.Split(bufio.ScanLines)
+	STDERRscanner.Split(bufio.ScanLines)
 	go func() {
 		for STDOUTscanner.Scan() {
 			m := STDOUTscanner.Text()
