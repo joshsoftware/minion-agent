@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/gorilla/websocket"
@@ -19,6 +20,32 @@ import (
 type session struct {
 	ws      *websocket.Conn
 	errChan chan error
+}
+
+// CommandOutput - an object holding the output from stderr or stdout, and the
+// time at which that output occurred.
+type CommandOutput struct {
+	Output string    `json:"output"`
+	At     time.Time `json:"at"`
+}
+
+// Command - represents a command to be issued by this agent
+type Command struct {
+	ID          string          `json:"id"`
+	ServerID    string          `json:"server_id"`
+	UserID      string          `json:"user_id"`
+	Command     string          `json:"command"`
+	STDERR      []CommandOutput `json:"stderr"`
+	STDOUT      []CommandOutput `json:"stdout"`
+	CreatedAt   int             `json:"created_at"`
+	StartedAt   int             `json:"started_at"`
+	CompletedAt int             `json:"completed_at"`
+}
+
+// NewCommands - used when the api has new commands for us to execute
+type NewCommands struct {
+	Action   string `json:"action"`
+	ServerID string `json:"server_id"`
 }
 
 type Config struct {
@@ -41,12 +68,9 @@ func main() {
 	err = json.Unmarshal(cfile, &config)
 	check(err)
 
-	fmt.Printf("%+v\n", config)
-
+	// Form a WebSocket connection
 	headers := make(http.Header)
 	headers.Add("Origin", config.Location)
-
-	fmt.Printf("%+v\n", headers)
 
 	dialer := websocket.Dialer{
 		Proxy: http.ProxyFromEnvironment,
@@ -54,7 +78,6 @@ func main() {
 			InsecureSkipVerify: true,
 		},
 	}
-	fmt.Printf("%+v\n", dialer)
 
 	loc, err := url.Parse(config.Location)
 	if err != nil {
@@ -102,5 +125,39 @@ func (s *session) readWebsocket() {
 		}
 
 		fmt.Fprint(os.Stdout, rxSprintf("< %s\n", text))
+
+		// This is where we figure out what the text says and act accordingly
+		var f interface{}
+		err = json.Unmarshal([]byte(text), &f)
+		check(err)
+		m := f.(map[string]interface{})
+		fmt.Println(m["action"])
+
+		switch m["action"] {
+		case "connected":
+			fmt.Println("Connection to Minion established!")
+			// Now we need to subscribe to new commands
+			go func() {
+				sub := NewCommands{Action: "new_commands", ServerID: "abc123"} // TODO: Replace this with a real server id
+				subjson, err := json.Marshal(sub)
+				err = s.ws.WriteMessage(websocket.TextMessage, []byte(subjson))
+				check(err)
+				fmt.Printf("%+v\n", sub)
+			}()
+		case "output_command":
+			fmt.Printf("%+v\n", m)
+		case "new_commands":
+			// The server is sending us a new command to execute
+			newVal, _ := json.Marshal(m["new_val"])
+			fmt.Println(string(newVal))
+			newCmd := Command{}
+			err = json.Unmarshal(newVal, &newCmd)
+			check(err)
+		case "update_command":
+			fmt.Printf("%+v\n", m)
+		default:
+			fmt.Printf("Unknown action: %+v\n", m["action"])
+			return
+		}
 	}
 }
