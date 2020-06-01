@@ -2,5 +2,7 @@
   "logs": [
     "/var/log/system.log",
     "/var/log/messages"
-  ]
+  ],
+  "server_id":"abc123",
+  "server_key":"super duper secret"
 }

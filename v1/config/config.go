@@ -9,7 +9,9 @@ import (
 
 // Config - represents the structure for the application's configuration
 type Config struct {
-	Logs []string `json:"logs"`
+	Logs      []string `json:"logs"`
+	ServerID  string   `json:"server_id"`
+	ServerKey string   `json:"server_key"`
 }
 
 // ReadConfig - call at application startup to create a config object to read from
