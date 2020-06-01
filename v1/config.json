@@ -1,0 +1,6 @@
+{
+  "logs": [
+    "/var/log/system.log",
+    "/var/log/messages"
+  ]
+}
