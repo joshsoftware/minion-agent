@@ -4,5 +4,7 @@
     "/var/log/messages"
   ],
   "server_id":"abc123",
-  "server_key":"super duper secret"
+  "server_key":"super duper secret",
+  "org_id":"12345myorg",
+  "org_key":"myorg key"
 }
