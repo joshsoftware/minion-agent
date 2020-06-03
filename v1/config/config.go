@@ -5,15 +5,17 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"time"
 )
 
 // Config - represents the structure for the application's configuration
 type Config struct {
-	Logs      []string `json:"logs"`
-	ServerID  string   `json:"server_id"`
-	ServerKey string   `json:"server_key"`
-	OrgID     string   `json:"org_id"`
-	OrgKey    string   `json:"org_key"`
+	Logs             []string  `json:"logs"`
+	ServerID         string    `json:"server_id"`
+	ServerKey        string    `json:"server_key"`
+	OrgID            string    `json:"org_id"`
+	OrgKey           string    `json:"org_key"`
+	RegistrationDate time.Time `json:"registration_date"`
 }
 
 // ReadConfig - call at application startup to create a config object to read from
@@ -35,7 +37,7 @@ func ReadConfig(filename string) (config Config) {
 }
 
 // WriteConfig - write out a configuration file at the ENV['CONFIG'] location
-func WriteConfig(filename string, config Config) {
+func WriteConfig(filename string, config Config) (err error) {
 	json, err := json.Marshal(config)
 	if err != nil {
 		log.Println("Cannot marshal JSON in WriteConfig", err)
@@ -45,4 +47,5 @@ func WriteConfig(filename string, config Config) {
 	if err != nil {
 		log.Println("Cannot write config file; changes will be lost when the program exits", err)
 	}
+	return
 }

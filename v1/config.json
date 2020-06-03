@@ -1,10 +1,1 @@
-{
-  "logs": [
-    "/var/log/system.log",
-    "/var/log/messages"
-  ],
-  "server_id":"abc123",
-  "server_key":"super duper secret",
-  "org_id":"12345myorg",
-  "org_key":"myorg key"
-}
+{"logs":["/var/log/system.log","/var/log/messages"],"server_id":"abc123","server_key":"welcometothejungle","org_id":"12345myorg","org_key":"myorg key","registration_date":"2020-06-03T09:35:49.62115Z"}
