@@ -38,7 +38,7 @@ func ReadConfig(filename string) (config Config) {
 
 // WriteConfig - write out a configuration file at the ENV['CONFIG'] location
 func WriteConfig(filename string, config Config) (err error) {
-	json, err := json.Marshal(config)
+	json, err := json.MarshalIndent(config, "", " ")
 	if err != nil {
 		log.Println("Cannot marshal JSON in WriteConfig", err)
 		return
