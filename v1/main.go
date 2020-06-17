@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"joshsoftware/minion-agent/config"
 	"joshsoftware/minion-agent/lifecycle"
 	"joshsoftware/minion-agent/logs"
 	"log"
 	"os"
+	"os/exec"
 )
 
 func main() {
@@ -21,10 +23,48 @@ func main() {
 		log.Println(err)
 	}
 
+	go func() {
+		cmd := exec.Command("bash", "-c", "echo stdout; sleep 5; echo 1>&2 stderr; sleep 5; echo 1>&2 morestderr; sleep 5")
+		stderr, err := cmd.StderrPipe()
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		stdout, err := cmd.StdoutPipe()
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		scannererr := bufio.NewScanner(stderr)
+		scannerout := bufio.NewScanner(stdout)
+
+		if err := cmd.Start(); err != nil {
+			log.Fatal(err)
+		}
+
+		go func() {
+			for scannerout.Scan() {
+				log.Println(scannerout.Text())
+			}
+		}()
+
+		go func() {
+			for scannererr.Scan() {
+				log.Println(scannererr.Text())
+			}
+		}()
+
+		if err := cmd.Wait(); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
 	// Primary command listening & execution loop
 	for {
-		// TODO: Check for new commands
 		// TODO: Check for unsent logs and send them if they exist
+		// TODO: Check for new commands
 		// TODO: Execute those commands in a goroutine
 		// TODO: Report command STDERR/STDOUT to StreamServer
 	}
