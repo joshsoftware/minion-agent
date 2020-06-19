@@ -5,6 +5,7 @@ import (
 	"joshsoftware/minion-agent/appconfig"
 	"joshsoftware/minion-agent/lifecycle"
 	"joshsoftware/minion-agent/logs"
+	"joshsoftware/minion-agent/streamserver"
 	"log"
 	"os"
 	"os/exec"
@@ -15,10 +16,19 @@ func main() {
 	if !lifecycle.IsRegistered(cfg) {
 		lifecycle.Register(cfg)
 	}
+
+	// Connect to the streamserver and authenticate
+	ss, err := streamserver.Connect(cfg)
+	if err != nil {
+		panic(err)
+	}
+
+	log.Println(string(ss))
+
 	go logs.TailLogs(cfg)
 
 	// Test writing the config
-	err := appconfig.WriteConfig(os.Getenv("CONFIG"), cfg)
+	err = appconfig.WriteConfig(os.Getenv("CONFIG"), cfg)
 	if err != nil {
 		log.Println(err)
 	}
