@@ -2,14 +2,14 @@ package logs
 
 import (
 	"io"
-	"joshsoftware/minion-agent/config"
+	"joshsoftware/minion-agent/appconfig"
 	"log"
 
 	"github.com/nxadm/tail"
 )
 
 // TailLogs - commences perpetual log tailing based on the logs configured in config.json
-func TailLogs(config config.Config) {
+func TailLogs(config appconfig.Config) {
 	seekloc := tail.SeekInfo{Offset: 0, Whence: io.SeekEnd}
 
 	for _, l := range config.Logs {

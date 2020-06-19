@@ -2,7 +2,7 @@ package main
 
 import (
 	"bufio"
-	"joshsoftware/minion-agent/config"
+	"joshsoftware/minion-agent/appconfig"
 	"joshsoftware/minion-agent/lifecycle"
 	"joshsoftware/minion-agent/logs"
 	"log"
@@ -11,14 +11,14 @@ import (
 )
 
 func main() {
-	cfg := config.ReadConfig(os.Getenv("CONFIG"))
+	cfg := appconfig.ReadConfig(os.Getenv("CONFIG"))
 	if !lifecycle.IsRegistered(cfg) {
 		lifecycle.Register(cfg)
 	}
 	go logs.TailLogs(cfg)
 
 	// Test writing the config
-	err := config.WriteConfig(os.Getenv("CONFIG"), cfg)
+	err := appconfig.WriteConfig(os.Getenv("CONFIG"), cfg)
 	if err != nil {
 		log.Println(err)
 	}

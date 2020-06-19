@@ -1,4 +1,4 @@
-package config
+package appconfig
 
 import (
 	"encoding/json"
@@ -16,6 +16,8 @@ type Config struct {
 	OrgID            string    `json:"org_id"`
 	OrgKey           string    `json:"org_key"`
 	RegistrationDate time.Time `json:"registration_date"`
+	StreamserverIP   string    `json:"streamserver_ip"`
+	StreamserverPort int32     `json:"streamserver_port"`
 }
 
 // ReadConfig - call at application startup to create a config object to read from
