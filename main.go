@@ -5,7 +5,7 @@ import (
 	"joshsoftware/minion-agent/appconfig"
 	"joshsoftware/minion-agent/lifecycle"
 	"joshsoftware/minion-agent/logs"
-	"joshsoftware/minion-agent/streamserver"
+	"joshsoftware/minion-agent/utils"
 	"log"
 	"os"
 	"os/exec"
@@ -18,20 +18,19 @@ func main() {
 	}
 
 	// Connect to the streamserver and authenticate
-	ss, err := streamserver.Connect(cfg)
-	if err != nil {
-		panic(err)
-	}
+	// ss, err := streamserver.Connect(cfg)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	log.Println(string(ss))
+	utils.NewUUID()
+
+	// err = streamserver.Authenticate(&ss, cfg)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	go logs.TailLogs(cfg)
-
-	// Test writing the config
-	err = appconfig.WriteConfig(os.Getenv("CONFIG"), cfg)
-	if err != nil {
-		log.Println(err)
-	}
 
 	go func() {
 		cmd := exec.Command("bash", "-c", "echo stdout; sleep 5; echo 1>&2 stderr; sleep 5; echo 1>&2 morestderr; sleep 5")
