@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"encoding/binary"
 	"log"
 	"time"
@@ -18,9 +19,10 @@ func NewUUID() (uuid string) {
 	log.Printf("%d", int32(nanoseconds))
 
 	// Declare a buffer we can use for converting to BigEndian
-	buf := make([]byte, 4)
+	b := make([]byte, 4)
+	buf := bytes.NewReader(b)
 	var chunk1 uint32
-	binary.BigEndian.PutUint32(buf, nanoseconds)
+	binary.BigEndian.PutUint32(b, nanoseconds)
 	err := binary.Read(buf, binary.BigEndian, &chunk1)
 	if err != nil {
 		log.Println(err)
