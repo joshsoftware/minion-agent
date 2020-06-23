@@ -1,0 +1,16 @@
+name: inotify
+version: 1.0.2
+description: |
+  Inotify bindings for Crystal language
+
+authors:
+  - Michael Petö <michael@petoe.me>
+
+development_dependencies:
+  ameba:
+    github: crystal-ameba/ameba
+    version: ~> 0.12.1
+
+crystal: 0.34.0
+
+license: MIT
