@@ -1,0 +1,8 @@
+{
+  "server_id":"",
+  "server_name":"some server name",
+  "group_id":"test-group-2",
+  "group_key":"798c733ba086c606fa8a925ab69bebf1cc44ee11a19ac81eaa4689774a6b6b04",
+  "streamserver_ip":"127.0.0.1",
+  "streamserver_port":47990
+}

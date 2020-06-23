@@ -3,6 +3,7 @@
 require "option_parser"
 require "fancyline"
 require "./client"
+require "./config"
 require "benchmark"
 
 VERSION  = "0.1.0"
