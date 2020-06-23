@@ -1,0 +1,17 @@
+name: minion-agent
+version: 0.1.0
+
+authors:
+  - Kirk Haines <wyhaines@gmail.com>
+
+crystal: 0.35.1
+
+license: MIT
+
+dependencies:
+  msgpack:
+    github: crystal-community/msgpack-crystal
+  fancyline:
+    github: Papierkorb/fancyline
+  retriable:
+    github: Sija/retriable.cr
