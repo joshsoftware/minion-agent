@@ -12,11 +12,20 @@ COMMANDS = {
   "log":       "L",
   "command":   "C",
   "response":  "R",
-  "telemetry": "T",
+  "telemetry": "T", # Conflicts with tail?
   "query":     "Q",
   "set":       "S",
-  "tail":      "T",
+  "tail":      "T", # Conflicts with telemetry?
 }
+
+# Read the config (based on the CONFIG env variable) and set configuration opts
+cfg = Minion::Config.from_json(File.read(ENV["CONFIG"]))
+CONFIG["host"]        = cfg.streamserver_host
+CONFIG["port"]        = cfg.streamserver_port
+CONFIG["group"]       = cfg.group_id
+CONFIG["server_id"]   = cfg.server_id
+CONFIG["server_name"] = cfg.server_name
+CONFIG["key"]         = cfg.group_key
 
 OptionParser.new do |opts|
   opts.banner = "IAR Interactive Agent REPL v#{VERSION}\nUsage: iar [options]"
@@ -81,7 +90,7 @@ streamserver = Minion::Client.new(
   host: CONFIG["host"].to_s,
   port: CONFIG["port"].to_i,
   group: CONFIG["group"].to_s,
-  server: CONFIG["server"].to_s,
+  server: CONFIG["server_id"].to_s,
   key: CONFIG["key"].to_s)
 
 fancy = Fancyline.new

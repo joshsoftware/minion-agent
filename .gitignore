@@ -6,7 +6,7 @@
 
 # Built artificats that we don't want to commit
 iar
-client
+agent
 
 # Libraries don't need dependency lock
 # Dependencies will be locked in applications that use them

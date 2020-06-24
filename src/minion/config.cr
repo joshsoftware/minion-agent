@@ -1,23 +1,26 @@
-require "json"
+require "yaml"
 
 module Minion
-  struct Config
-    property server_id
-    property server_name
-    property group_id
-    property group_key
-    property streamserver_ip
-    property streamserver_port
+  class Config
+    include YAML::Serializable
+    include YAML::Serializable::Unmapped
 
-    def initialize(filename)
-      json = JSON.parse(File.read(filename))
+    @[YAML::Field(key: "server_id")]
+    property server_id         : String
 
-      @server_id         = json["server_id"]
-      @server_name       = json["server_name"]
-      @group_id          = json["group_id"]
-      @group_key         = json["group_key"]
-      @streamserver_ip   = json["streamserver_ip"]
-      @streamserver_port = json["streamserver_port"]
-    end
+    @[YAML::Field(key: "server_name")]
+    property server_name       : String
+
+    @[YAML::Field(key: "group_id")]
+    property group_id          : String
+
+    @[YAML::Field(key: "group_key")]
+    property group_key         : String
+
+    @[YAML::Field(key: "streamserver_host")]
+    property streamserver_host : String
+
+    @[YAML::Field(key: "streamserver_port")]
+    property streamserver_port : Int32
   end
 end
