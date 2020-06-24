@@ -152,6 +152,11 @@ module Minion
       # Establish the initial connection.
       clear_failure
       connect
+
+      # Tell the user we're authenticated
+      if @authenticated == true
+        puts "Minion Agent Authenticated!"
+      end
     end
 
     # ----- Various instance accessors

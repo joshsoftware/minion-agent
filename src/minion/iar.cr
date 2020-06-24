@@ -19,7 +19,7 @@ COMMANDS = {
 }
 
 # Read the config (based on the CONFIG env variable) and set configuration opts
-cfg = Minion::Config.from_json(File.read(ENV["CONFIG"]))
+cfg = Minion::Config.from_yaml(File.read(ENV["CONFIG"]))
 CONFIG["host"]        = cfg.streamserver_host
 CONFIG["port"]        = cfg.streamserver_port
 CONFIG["group"]       = cfg.group_id
