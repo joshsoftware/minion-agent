@@ -1,10 +1,12 @@
+require "hardware"
+
 module Minion
   class Agent
     def self.exec
       cfg = Minion::Config.from_yaml(File.read(ENV["CONFIG"]))
 
       # Diagnostic information for the operator
-      puts "Starting Minion Agent with the following configuration (from #{ENV["CONFIG"]})"
+      puts "Starting Minion Agent v#{VERSION} with the following configuration (from #{ENV["CONFIG"]})"
       puts "Streamserver: \t\t #{cfg.streamserver_host}:#{cfg.streamserver_port}"
       puts "Group ID: \t\t #{cfg.group_id}"
       puts "Group Key: \t\t #{cfg.group_key}"
@@ -18,6 +20,28 @@ module Minion
         server: cfg.server_id,
         key: cfg.group_key
       )
+
+      spawn name: "telemetry" do
+        loop do
+          # Report telemetry
+          mem = Hardware::Memory.new
+          puts "Using #{mem.used} memory"
+          sleep 5
+        end
+      end
+
+      spawn name: "tail" do
+        # Tail logs and report new lines
+      end
+
+      loop do
+        sleep 1
+      # Listen for command dispatch
+        # spawn name: "command" do
+        #   # Execute command
+        #   # Report stderr, stdout to ss
+        # end
+      end
     end
   end
 end
