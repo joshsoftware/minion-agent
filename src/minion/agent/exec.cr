@@ -24,8 +24,8 @@ module Minion
       spawn name: "telemetry" do
         loop do
           # Report telemetry
-          pct_mem = Telemetry.pct_mem_in_use
-          puts "Memory used: #{pct_mem}%"
+          mem = Telemetry.mem_in_use
+          puts "Memory used: #{mem}"
           sleep 5
         end
       end
