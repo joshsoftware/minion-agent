@@ -9,3 +9,5 @@ tail_logs:
     - "/var/log/syslog"
     - "/var/log/messages"
     - "/var/log/system.log"
+    - "/var/log/rethinkdb"
+    - "/var/log/auth.log"
