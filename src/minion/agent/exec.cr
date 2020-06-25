@@ -1,4 +1,4 @@
-require "hardware"
+require "./telemetry"
 
 module Minion
   class Agent
@@ -24,8 +24,8 @@ module Minion
       spawn name: "telemetry" do
         loop do
           # Report telemetry
-          mem = Hardware::Memory.new
-          puts "Using #{mem.used} memory"
+          pct_mem = Telemetry.pct_mem_in_use
+          puts "Memory used: #{pct_mem}%"
           sleep 5
         end
       end
