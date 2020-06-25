@@ -25,7 +25,7 @@ module Minion
         loop do
           # Report telemetry
           mem = Telemetry.mem_in_use
-          puts "Memory used: #{mem}"
+          ss.send("T", UUID.new, ["mem_used_kb", mem.to_s])
           sleep 5
         end
       end

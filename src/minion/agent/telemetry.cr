@@ -33,7 +33,7 @@ module Minion
           Process.run("sysctl -n hw.memsize", shell: true, output: max_mem)
           max_mem = max_mem.to_s.to_f
           # Return used memory in kilobytes
-          used_mem = ((pages_active.to_f + pages_wired.to_f + pages_compressed.to_f) * page_size.to_f) / 1024.0
+          used_mem : Float64 = ((pages_active.to_f + pages_wired.to_f + pages_compressed.to_f) * page_size.to_f) / 1024.0
           return used_mem
         end
       end
