@@ -3,10 +3,10 @@ require "hardware"
 module Minion
   class Agent
     class Telemetry
-      def self.pct_mem_in_use
+      def self.mem_in_use
         begin
           mem = Hardware::Memory.new
-          return mem.percent.to_f
+          return mem.used.to_f # kilobytes
         rescue exception
           # If no /proc, we're probably on MacOS, so fall back to sysctl/vm_stat
           # NOTE: This is for MacOS. I'm not sure on the accuracy of how I'm
@@ -32,8 +32,9 @@ module Minion
           max_mem = IO::Memory.new
           Process.run("sysctl -n hw.memsize", shell: true, output: max_mem)
           max_mem = max_mem.to_s.to_f
-          used_mem = (pages_active.to_f + pages_wired.to_f + pages_compressed.to_f) * page_size.to_f
-          return ((used_mem / max_mem) * 100).to_f
+          # Return used memory in kilobytes
+          used_mem = ((pages_active.to_f + pages_wired.to_f + pages_compressed.to_f) * page_size.to_f) / 1024.0
+          return used_mem
         end
       end
     end
