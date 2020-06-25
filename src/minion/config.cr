@@ -22,5 +22,8 @@ module Minion
 
     @[YAML::Field(key: "streamserver_port")]
     property streamserver_port : Int32
+
+    @[YAML::Field(key: "tail_logs")]
+    property tail_logs : Array(String)
   end
 end

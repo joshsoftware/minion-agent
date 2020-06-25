@@ -23,15 +23,36 @@ module Minion
 
       spawn name: "telemetry" do
         loop do
-          # Report telemetry
+          # Report memory usage
           mem = Telemetry.mem_in_use
           ss.send("T", UUID.new, ["mem_used_kb", mem.to_s])
+
+          # Report CPU usage
+          loadavg = Telemetry.load_avg
+          ss.send("T", UUID.new, ["load_avg", loadavg])
+
+          # TODO: Disk usage, swap
           sleep 5
         end
       end
 
-      spawn name: "tail" do
-        # Tail logs and report new lines
+      # Tail logs and report new lines
+      cfg.tail_logs.each do |log|
+        if File.exists?(log)
+          spawn do
+            File.open(log) do |fh|
+              puts "Opened file: #{log}"
+              fh.seek(offset: 0, whence: IO::Seek::End)
+              loop do
+                puts "Reading from #{log}..."
+                while line = fh.gets
+                  ss.send(verb: "L", data: [log, line])
+                end
+                sleep 0.5
+              end
+            end
+          end
+        end
       end
 
       loop do

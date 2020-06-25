@@ -3,6 +3,27 @@ require "hardware"
 module Minion
   class Agent
     class Telemetry
+      def self.load_avg
+        begin
+          # Here we're only interested in the first number reported by loadavg
+          # because we're going to report telemetry every so many seconds. That
+          # means that eventually the longer-term load average statistics
+          # become usless since we already have that information.
+          #
+          # cat /proc/loadavg
+          # 0.00 0.00 0.00 1/221 4722
+          return File.read("/proc/loadavg").split(" ").not_nil![0]
+          # return loadavg
+        rescue exception
+          # Without procfs, we need to rely on sysctl -n vm.loadavg
+          # { 0.88 0.76 0.67 }
+          sysctl = IO::Memory.new
+          Process.run("sysctl -n vm.loadavg", shell: true, output: sysctl)
+          return sysctl.to_s.split(" ").not_nil![1]
+          # return loadavg
+        end
+      end
+
       def self.mem_in_use
         begin
           mem = Hardware::Memory.new
@@ -24,7 +45,10 @@ module Minion
           pages_compressed : Int32 = vm_stat.to_s.match(/Pages stored in compressor\:\s*(\d*)/).
             not_nil![1].to_i.not_nil!
 
-          # No we multiply the number of pages (active and wired) by the page
+          # Ensure we clean up vm_stat so it doesn't grow unwieldly large
+          vm_stat = nil
+
+          # Now we multiply the number of pages (active and wired) by the page
           # size to find out roughly how many bytes of memory are in use. We
           # could get maximum memory from sysctl -n hw.memsize but it's not as
           # important as knowing how much is *in use* and seeing that trend.
@@ -34,6 +58,10 @@ module Minion
           max_mem = max_mem.to_s.to_f
           # Return used memory in kilobytes
           used_mem : Float64 = ((pages_active.to_f + pages_wired.to_f + pages_compressed.to_f) * page_size.to_f) / 1024.0
+
+          # Clean up max_mem
+          max_mem = nil
+
           return used_mem
         end
       end
