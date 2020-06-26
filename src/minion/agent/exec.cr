@@ -47,7 +47,7 @@ module Minion
                 puts "Reading from #{log}..."
                 while line = fh.gets
                   puts "Sending the following: #{line}"
-                  ss.send(verb: "L", data: [log, line])
+                  ss.send(verb: "L", data: ["stderr", log, line])
                 end
                 sleep 0.5
               end
