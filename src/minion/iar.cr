@@ -5,6 +5,7 @@ require "fancyline"
 require "./client"
 require "./config"
 require "benchmark"
+require "hardware"
 
 VERSION  = "0.1.0"
 CONFIG   = {} of String => String | Int32
@@ -12,20 +13,54 @@ COMMANDS = {
   "log":       "L",
   "command":   "C",
   "response":  "R",
-  "telemetry": "T", # Conflicts with tail?
+  "telemetry": "T", 
   "query":     "Q",
   "set":       "S",
-  "tail":      "T", # Conflicts with telemetry?
 }
 
+def load_avg
+  begin
+    return File.read("/proc/loadavg").split(" ").not_nil![0]
+  rescue exception
+    sysctl = IO::Memory.new
+    Process.run("sysctl -n vm.loadavg", shell: true, output: sysctl)
+    return sysctl.to_s.split(" ").not_nil![1]
+  end
+end
+
+def mem_in_use
+  begin
+    mem = Hardware::Memory.new
+    return mem.used.to_f # kilobytes
+  rescue exception
+
+    cmd = "vm_stat"
+    vm_stat = IO::Memory.new
+    Process.run(cmd, shell: true, output: vm_stat)
+    pages_active     : Int32 = vm_stat.to_s.match(/Pages active\:\s*(\d*)/).
+      not_nil![1].to_i.not_nil!
+    page_size        : Int32 = vm_stat.to_s.match(/\(page size of (\d*) bytes\)/).
+      not_nil![1].to_i.not_nil!
+    pages_wired      : Int32 = vm_stat.to_s.match(/Pages wired down\:\s*(\d*)/).
+      not_nil![1].to_i.not_nil!
+    pages_compressed : Int32 = vm_stat.to_s.match(/Pages stored in compressor\:\s*(\d*)/).
+      not_nil![1].to_i.not_nil!
+  
+    used_mem : Float64 = ((pages_active.to_f + pages_wired.to_f + pages_compressed.to_f) * page_size.to_f) / 1024.0
+    return used_mem
+  end
+end
+
 # Read the config (based on the CONFIG env variable) and set configuration opts
-cfg = Minion::Config.from_yaml(File.read(ENV["CONFIG"]))
-CONFIG["host"]        = cfg.streamserver_host
-CONFIG["port"]        = cfg.streamserver_port
-CONFIG["group"]       = cfg.group_id
-CONFIG["server_id"]   = cfg.server_id
-CONFIG["server_name"] = cfg.server_name
-CONFIG["key"]         = cfg.group_key
+if ENV.has_key?("CONFIG") && File.exists?(ENV["CONFIG"])
+  cfg = Minion::Config.from_yaml(File.read(ENV["CONFIG"]))
+  CONFIG["host"]        = cfg.streamserver_host
+  CONFIG["port"]        = cfg.streamserver_port
+  CONFIG["group"]       = cfg.group_id
+  CONFIG["server"]   = cfg.server_id
+  CONFIG["server_name"] = cfg.server_name
+  CONFIG["key"]         = cfg.group_key
+end
 
 OptionParser.new do |opts|
   opts.banner = "IAR Interactive Agent REPL v#{VERSION}\nUsage: iar [options]"
@@ -90,8 +125,19 @@ streamserver = Minion::Client.new(
   host: CONFIG["host"].to_s,
   port: CONFIG["port"].to_i,
   group: CONFIG["group"].to_s,
-  server: CONFIG["server_id"].to_s,
+  server: CONFIG["server"].to_s,
   key: CONFIG["key"].to_s)
+
+spawn name: "telemetry" do
+  loop do
+    # Report memory usage
+    streamserver.send(verb: "T", data: ["mem_used_kb", mem_in_use.to_s])
+
+    streamserver.send(verb: "T", data: ["load_avg", load_avg])
+
+    sleep 5
+  end
+end
 
 fancy = Fancyline.new
 puts "Messages to the StreamServer are in the format of:\nVERB::DATA1::DATA2::DATAn\nType 'verbs' for a list of known verbs\nType 'exit' or press CTRL-d to exit.\n"
