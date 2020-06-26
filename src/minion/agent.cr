@@ -1,5 +1,5 @@
 require "./client"
-require "./config"
+require "./agent/config"
 require "./agent/version"
 require "./agent/exec"
 
