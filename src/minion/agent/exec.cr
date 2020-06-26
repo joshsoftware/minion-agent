@@ -37,17 +37,17 @@ module Minion
       end
 
       # Tail logs and report new lines
-      cfg.tail_logs.each do |log|
-        if File.exists?(log)
+      cfg.tail_logs.each do |service|
+        if File.exists?(service.file)
           spawn do
-            File.open(log) do |fh|
-              puts "Opened file: #{log}"
+            File.open(service.file) do |fh|
+              puts "Opened file: #{service.file}"
               fh.seek(offset: 0, whence: IO::Seek::End)
               loop do
-                puts "Reading from #{log}..."
+                puts "Reading from #{service.file}..."
                 while line = fh.gets
                   puts "Sending the following: #{line}"
-                  ss.send(verb: "L", data: ["stderr", log, line])
+                  ss.send(verb: "L", data: [service.service, service.file, line])
                 end
                 sleep 0.5
               end
