@@ -44,7 +44,7 @@ module Minion
     CONNECTION_FAILURE_TIMEOUT  = 86_400 * 2     # Log locally for a long time if Minion server goes down.
     MAX_FAILURE_COUNT           = 0_u128 &- 1    # Max integer -- i.e. really big
     PERSISTENT_QUEUE_LIMIT      = 10_737_412_742 # Default to allowing around 10GB temporary local log storage
-    RECONNECT_THROTTLE_INTERVAL =            0.1
+    RECONNECT_THROTTLE_INTERVAL = 0.1
 
     def send(
       verb : String | Symbol = "",
@@ -52,14 +52,14 @@ module Minion
       data : Array(String) = [@group, @server] of String
     )
       if @destination == :local
-        _local_log(verb: verb, uuid: uuid, data: [@group, @server] + data)
+        @local_queue.send({verb, uuid, [@group, @server] + data})
       else
-        _send_remote(verb: verb, uuid: uuid, data: [@group, @server] + data)
+        @remote_queue.send({verb, uuid, [@group, @server] + data})
       end
-    rescue Exception
-      @authenticated = false
-      setup_local_logging
-      setup_reconnect_fiber
+    # rescue Exception
+    #   @authenticated = false
+    #   setup_local_logging
+    #   setup_reconnect_fiber
     end
 
     # ----- Various class accessors -- use these to set defaults
@@ -117,7 +117,8 @@ module Minion
     @reconnect_throttle_interval : Float64
     @io_details : Hash(IO, IoDetails) = {} of IO => IoDetails
     @server : String
-
+    @remote_fiber : Fiber
+    @local_fiber : Fiber
     def initialize(
       @host = "127.0.0.1",
       @port = 6766,
@@ -126,6 +127,9 @@ module Minion
       @key = ""
     )
       # That's a lot of instance variables....
+      @remote_queue = Channel(Tuple(String|Symbol, UUID|String, Array(String))|Slice(UInt8)).new(100)
+      @local_queue = Channel(Tuple(String|Symbol, UUID|String, Array(String))|Slice(UInt8)).new(100)
+
       @socket = nil
       klass = self.class
       @connection_failure_timeout = klass.connection_failure_timeout
@@ -139,18 +143,10 @@ module Minion
       @logfile = nil
       @swamp_drainer = nil
       @failed_at = nil
-      # @send_size_buffer = Slice(UInt8).new(2)
-      # @receive_size_buffer = Slice(UInt8).new(2)
-      # @size_read = 0
-      # @message_bytes_read = 0
-      # @message_size = 0_u16
-      # @data_buffer = Slice(UInt8).new(MAX_MESSAGE_LENGTH)
-      # @message_buffer = @data_buffer[0,1]
-      # @read_message_size = true
-      # @read_message_body = false
 
       # Establish the initial connection.
       clear_failure
+      @remote_fiber, @local_fiber = establish_fibers
       connect
 
       # Tell the user we're authenticated
@@ -211,6 +207,34 @@ module Minion
     end
 
     # ----- The meat of the client
+
+    def establish_fibers : Array(Fiber)
+      remote_fiber = spawn(name: "remote_send") do
+        loop do
+          while msg = @remote_queue.receive?
+            if msg.is_a?(Slice)
+              _send_remote(already_packed_msg: msg)
+            else
+              _send_remote(verb: msg[0], uuid: msg[1], data: msg[2])
+            end
+          end
+        end
+      end
+
+      local_fiber = spawn(name: "local_send") do
+        loop do
+          while msg = @local_queue.receive?
+            if msg.is_a?(Slice)
+              _local_log(already_packed_msg: msg)
+            else
+              _local_log(verb: msg[0], uuid: msg[1], data: msg[2])
+            end
+          end
+        end
+      end
+
+      [remote_fiber, local_fiber]
+    end
 
     def connect
       @socket = open_connection(@host, @port)
@@ -334,52 +358,55 @@ module Minion
     # def _send_remote(service, severity, message, flush_after_send = true)
     def _send_remote(
       verb : String | Symbol = "",
-      uuid : UUID = UUID.new,
+      uuid : UUID | String = UUID.new,
       data : Array(String) = [@group, @server] of String,
-      flush_after_send = false,
-      already_packed_msg : Slice(UInt8) | Nil = nil
     )
-      @total_count += 1 # Is there anything useful gained in having the client keep a count of messages sent?
 
-      if already_packed_msg.nil?
-        msg = Frame.new(verb, uuid, data)
-        packed_msg = msg.to_msgpack
-      else
-        packed_msg = already_packed_msg
-      end
+      msg = Frame.new(verb, uuid, data)
+      packed_msg = msg.to_msgpack
+      _send_remote_impl(packed_msg, verb == :command)
+    end
 
+    def _send_remote(already_packed_msg : Slice(UInt8))
+      _send_remote_impl(already_packed_msg)
+    end
+
+    def _send_remote_impl(packed_msg, flush = false)
       ssb = @io_details[@socket].send_size_buffer
       IO::ByteFormat::BigEndian.encode(packed_msg.size.to_u16, ssb)
-      if @socket.nil?
+      sock = @socket
+      if sock.nil? || sock.closed?
         @authenticated = false
         setup_local_logging
         setup_reconnect_fiber
-        _local_log(verb, uuid, data)
+        @local_queue.send(packed_msg)
       else
-        @socket.not_nil!.write(ssb)
-        @socket.not_nil!.write(packed_msg)
-        @socket.not_nil!.flush if flush_after_send
+        sock.write(ssb)
+        sock.write(packed_msg)
+        sock.flush if flush
       end
     rescue
       @authenticated = false
       setup_local_logging
       setup_reconnect_fiber
-      if packed_msg
-        _local_log(already_packed_msg: packed_msg)
-      else
-        _local_log(verb: verb, uuid: uuid, data: data)
-      end
+      @local_queue.send(packed_msg)
     end
 
     def _local_log(
       verb : String | Symbol = "",
-      uuid : UUID = UUID.new,
-      data : Array(String) = [@group, @server] of String,
-      already_packed_msg : Slice(UInt8) | Nil = nil
+      uuid : UUID | String = UUID.new,
+      data : Array(String) = [@group, @server] of String
     )
-      # Convert newlines to a different marker so that log messages can be stuffed onto a single file line.
       msg = Frame.new(verb, uuid, data)
       packed_msg = msg.to_msgpack
+      _local_log_impl(packed_msg)
+    end
+
+    def _local_log(already_packed_msg : Slice(UInt8))
+      _local_log_impl(already_packed_msg)
+    end
+
+    def _local_log_impl(packed_msg)
       @logfile.not_nil!.flock_exclusive
       @logfile.not_nil!.write packed_msg
     ensure
@@ -426,10 +453,11 @@ module Minion
 
     def authenticate
       begin
-        _send_remote(
-          verb: :command,
-          data: [@group, @server, "authenticate-agent", @key],
-          flush_after_send: true)
+        @remote_queue.send({
+          :command,
+          UUID.new,
+          [@group, @server, "authenticate-agent", @key],
+          })
         until response = read
           Fiber.yield
         end
@@ -463,6 +491,7 @@ module Minion
     end
 
     def _drain_the_swamp
+      STDERR.puts "DRAINING"
       # As soon as we start emptying the local log file, ensure that no data
       # gets missed because of IO buffering. Otherwise, during high rates of
       # message sending, it is possible to get an EOF on file reading, and
@@ -478,14 +507,17 @@ module Minion
             while logfile_not_empty
               record = read(fh) unless closed?
               if record
-                record = Frame.new(record)
+                STDERR.puts "  RECORD: #{Frame.new(record).inspect}"
+                # record = Frame.new(record)
                 Retriable.retry(max_interval: 1.minute, max_attempts: 0_u32 &- 1, multiplier: 1.05) do
-                  _send_remote(already_packed_msg: record.to_msgpack)
+                  # @remote_queue.send(record.to_msgpack)
+                  @remote_queue.send(record)
                 end
               else
                 logfile_not_empty = false
               end
             end
+            STDERR.puts "Deleting #{logfile}"
             File.delete logfile
           end
           setup_remote if tmplog == logfile

@@ -217,7 +217,7 @@ while input = fancy.readline("$ ")
     end
   else
     repeat = 1
-    if input =~ /^\s*(\d+)\s+times\s*\{(.*?)\}\s*$/
+    if input =~ /^\s*(\d+)\s+times\s*\{\s*(.*?)\s*\}\s*$/
       repeat = $1.to_i
       input = $2
     end
@@ -227,12 +227,11 @@ while input = fancy.readline("$ ")
     verb = COMMANDS[verb] if COMMANDS.has_key?(verb)
 
     data = parts.size > 1 ? parts[1..-1] : [] of String
-    STDERR.puts "Sending: verb: #{verb}, data: #{data.inspect}"
     if repeat > 1
       Benchmark.bm do |bm|
         bm.report("#{repeat} iterations") do
           repeat.times do |n|
-            streamserver.send(verb: verb, data: data)
+            streamserver.send(verb: verb, data: data.map{|d| d.gsub(/ITER/,n)})
           end
         end
       end

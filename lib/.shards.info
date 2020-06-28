@@ -13,9 +13,6 @@ shards:
   retriable:
     git: https://github.com/Sija/retriable.cr.git
     version: 0.2.2
-  inotify:
-    git: https://github.com/petoem/inotify.cr.git
-    version: 1.0.2
   hardware:
     git: https://github.com/crystal-community/hardware.git
     version: 0.5.1
