@@ -123,7 +123,8 @@ module Minion
       @port = 6766,
       @group = "",
       @server = UUID.new(identifier: build_identifier).to_s,
-      @key = ""
+      @key = "",
+      fail_immediately = false
     )
       # That's a lot of instance variables....
       @socket = nil
@@ -151,7 +152,7 @@ module Minion
 
       # Establish the initial connection.
       clear_failure
-      connect
+      connect(fail_immediately)
 
       # Tell the user we're authenticated
       if @authenticated == true
@@ -212,7 +213,7 @@ module Minion
 
     # ----- The meat of the client
 
-    def connect
+    def connect(fail_immediately = false)
       @socket = open_connection(@host, @port)
       @io_details[@socket.not_nil!] = IoDetails.new
       authenticate
@@ -226,6 +227,10 @@ module Minion
         setup_remote
       end
     rescue e : Exception
+      if fail_immediately == true
+        raise e
+      end
+
       STDERR.puts e
       STDERR.puts e.backtrace.inspect
       register_failure
