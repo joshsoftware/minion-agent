@@ -3,7 +3,7 @@
 require "option_parser"
 require "fancyline"
 require "./client"
-require "./config"
+require "./agent/config"
 require "benchmark"
 require "hardware"
 

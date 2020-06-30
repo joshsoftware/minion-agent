@@ -51,15 +51,7 @@ module Minion
       uuid : UUID | String = UUID.new,
       data : Array(String) = [@group, @server] of String
     )
-      # if @destination.get == "local"
-      #  @local_queue.send({verb, uuid, [@group, @server] + data})
-      # else
       @remote_queue.send({verb, uuid, [@group, @server] + data})
-      # end
-      # rescue Exception
-      #   @authenticated = false
-      #   setup_local_logging
-      #   setup_reconnect_fiber
     end
 
     # ----- Various class accessors -- use these to set defaults
@@ -112,7 +104,6 @@ module Minion
     @connection_failure_timeout : Int32
     @max_failure_count : UInt128
     @persistent_queue_limit : Int64
-    # @message_buffer : Slice(UInt8)
     @tmplog : String?
     @reconnect_throttle_interval : Float64
     @io_details : Hash(IO, IoDetails) = {} of IO => IoDetails
@@ -141,7 +132,6 @@ module Minion
       @max_failure_count = klass.max_failure_count
       @persistent_queue_limit = klass.persistent_queue_limit
       @reconnect_throttle_interval = klass.reconnect_throttle_interval
-      # @destination = Atomic.new("remote")
       @reconnection_fiber = nil
       @authenticated = false
       @total_count = 0
@@ -164,6 +154,10 @@ module Minion
 
     getter total_count
     getter connection_failure_timeout
+
+    def server_id
+      server
+    end
 
     def connection_failure_timeout=(val)
       @connection_failure_timeout = val.to_i
@@ -256,7 +250,6 @@ module Minion
       authenticate
       raise FailedToAuthenticate.new(@host, @port) unless authenticated?
       clear_failure
-      setup_remote
     rescue e : Exception
       if fail_immediately == true
         raise e
@@ -267,8 +260,6 @@ module Minion
       register_failure
       close_connection
       setup_reconnect_fiber unless @reconnection_fiber && !@reconnection_fiber.not_nil!.dead?
-      # setup_local_logging
-      # raise e if fail_connect?
     end
 
     # Read a message from the wire using a length header before the msgpack payload.
@@ -358,11 +349,6 @@ module Minion
       @logfile = File.open(tl, "ab")
       @logfile.not_nil!.sync = true
       @io_details[@logfile.not_nil!] = IoDetails.new
-      #      @destination.set("local")
-    end
-
-    def setup_remote
-      # @destination.set("remote")
     end
 
     def setup_reconnect_fiber
@@ -420,7 +406,6 @@ module Minion
       end
     rescue ex
       @authenticated = false
-      setup_local_logging
       setup_reconnect_fiber unless @reconnection_fiber && !@reconnection_fiber.not_nil!.dead?
       @local_queue.send(packed_msg)
     end
@@ -535,9 +520,6 @@ module Minion
     end
 
     def drain_the_swamp
-      # if @destination.get == "remote"
-      #  setup_local_logging
-      # end
       Retriable.retry(max_interval: 1.minute, max_attempts: 0_u32 &- 1, multiplier: 1.05) do
         raise "retry" if @socket.nil? || @socket.not_nil!.closed? || !@authenticated
 
@@ -558,8 +540,6 @@ module Minion
                 return if closed?
                 record = read(fh)
                 if record
-                  # record = Frame.new(record)
-                  # @remote_queue.send(record.to_msgpack)
                   @remote_queue.send(record)
                 else
                   logfile_not_empty = false
