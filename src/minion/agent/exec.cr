@@ -55,7 +55,7 @@ module Minion
 
       loop do
         sleep 1
-      # Listen for command dispatch
+        # Listen for command dispatch
         # spawn name: "command" do
         #   # Execute command
         #   # Report stderr, stdout to ss

@@ -13,7 +13,7 @@ COMMANDS = {
   "log":       "L",
   "command":   "C",
   "response":  "R",
-  "telemetry": "T", 
+  "telemetry": "T",
   "query":     "Q",
   "set":       "S",
 }
@@ -33,19 +33,18 @@ def mem_in_use
     mem = Hardware::Memory.new
     return mem.used.to_f # kilobytes
   rescue exception
-
     cmd = "vm_stat"
     vm_stat = IO::Memory.new
     Process.run(cmd, shell: true, output: vm_stat)
-    pages_active     : Int32 = vm_stat.to_s.match(/Pages active\:\s*(\d*)/).
-      not_nil![1].to_i.not_nil!
-    page_size        : Int32 = vm_stat.to_s.match(/\(page size of (\d*) bytes\)/).
-      not_nil![1].to_i.not_nil!
-    pages_wired      : Int32 = vm_stat.to_s.match(/Pages wired down\:\s*(\d*)/).
-      not_nil![1].to_i.not_nil!
-    pages_compressed : Int32 = vm_stat.to_s.match(/Pages stored in compressor\:\s*(\d*)/).
-      not_nil![1].to_i.not_nil!
-  
+    pages_active : Int32 = vm_stat.to_s.match(/Pages active\:\s*(\d*)/)
+      .not_nil![1].to_i.not_nil!
+    page_size : Int32 = vm_stat.to_s.match(/\(page size of (\d*) bytes\)/)
+      .not_nil![1].to_i.not_nil!
+    pages_wired : Int32 = vm_stat.to_s.match(/Pages wired down\:\s*(\d*)/)
+      .not_nil![1].to_i.not_nil!
+    pages_compressed : Int32 = vm_stat.to_s.match(/Pages stored in compressor\:\s*(\d*)/)
+      .not_nil![1].to_i.not_nil!
+
     used_mem : Float64 = ((pages_active.to_f + pages_wired.to_f + pages_compressed.to_f) * page_size.to_f) / 1024.0
     return used_mem
   end
@@ -54,12 +53,12 @@ end
 # Read the config (based on the CONFIG env variable) and set configuration opts
 if ENV.has_key?("CONFIG") && File.exists?(ENV["CONFIG"])
   cfg = Minion::Config.from_yaml(File.read(ENV["CONFIG"]))
-  CONFIG["host"]        = cfg.streamserver_host
-  CONFIG["port"]        = cfg.streamserver_port
-  CONFIG["group"]       = cfg.group_id
-  CONFIG["server"]   = cfg.server_id
+  CONFIG["host"] = cfg.streamserver_host
+  CONFIG["port"] = cfg.streamserver_port
+  CONFIG["group"] = cfg.group_id
+  CONFIG["server"] = cfg.server_id
   CONFIG["server_name"] = cfg.server_name
-  CONFIG["key"]         = cfg.group_key
+  CONFIG["key"] = cfg.group_key
 end
 
 OptionParser.new do |opts|
@@ -231,7 +230,7 @@ while input = fancy.readline("$ ")
       Benchmark.bm do |bm|
         bm.report("#{repeat} iterations") do
           repeat.times do |n|
-            streamserver.send(verb: verb, data: data.map{|d| d.gsub(/ITER/,n)})
+            streamserver.send(verb: verb, data: data.map { |d| d.gsub(/ITER/, n) })
           end
         end
       end
