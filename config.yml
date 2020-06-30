@@ -5,3 +5,14 @@ group_id: "test-group-2"
 group_key: "798c733ba086c606fa8a925ab69bebf1cc44ee11a19ac81eaa4689774a6b6b04"
 server_id: ""
 server_name: "development-minion-agent"
+tail_logs:
+    - service: syslog
+      file: "/var/log/syslog"
+    - service: messages
+      file: "/var/log/messages"
+    - service: "MacOS System Log"
+      file: "/var/log/system.log"
+    - service: rethinkdb
+      file: "/var/log/rethinkdb"
+    - service: auth.log
+      file: "/var/log/auth.log"
