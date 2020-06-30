@@ -11,3 +11,6 @@
 # Libraries don't need dependency lock
 # Dependencies will be locked in applications that use them
 /shard.lock
+
+# Ignore the testing stuff under json-server/public
+/json-server/public/agent
