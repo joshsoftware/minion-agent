@@ -50,7 +50,7 @@ module Minion
   #
   struct UUID
     @@prng = Random::ISAAC.new
-    @@string_matcher = /^(............)-(....)-(....)-(............)/
+    @@string_matcher = /^(........)-(....)-(....)-(....)-(............)/
     class_property identifier
     class_property extra
 
@@ -115,7 +115,7 @@ module Minion
 
     def to_s
       hs = @bytes.hexstring
-      "#{hs[0..11]}-#{hs[12..15]}-#{hs[16..19]}-#{hs[20..31]}"
+      "#{hs[0..7]}-#{hs[8..11]}-#{hs[12..15]}-#{hs[16..19]}-#{hs[20..31]}"
     end
   end
 end
