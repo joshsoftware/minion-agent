@@ -24,7 +24,7 @@ module Minion
       # TODO: Is there a cleaner way to auto-discover this path?
       exec_path : String =  Process.executable_path.not_nil!
       filename : String = exec_path.match(/.*(\/.*)/).not_nil![1]
-      dir = exec_path.gsub(/#{filename}/, "")
+      root_dir = exec_path.sub(/#{filename}/, "")
 
       # 1. Query the API for the latest version.
       begin
@@ -35,8 +35,20 @@ module Minion
 
       # 2. Download that version to PWD/versions/minion-VERSION
       #    a) Check if versions/ subdir exists
-      #    b) Create it if not
+      if !Dir.exists?(File.join(root_dir, "versions"))
+        #    b) Create it if not
+        Dir.mkdir(File.join(root_dir, "versions"))
+      end
+
       #    c) Download and save the file
+      filename = File.join(root_dir, "versions", "minion-agent-#{upgrade_data.latest_version}")
+      File.open(filename, "ab") do |fh|
+        HTTP::Client.get(upgrade_data.download_url) do |response|
+          if response.status_code == 200
+            fh.write response.body_io.gets_to_end.to_slice
+          end
+        end
+      end
       #    d) Run a shasum on the file
       #    e) Compare shasum to upgrade_data shasum
       # 3. Run PWD/versions/minion-VERSION -t CONFIG=#{ENV["CONFIG"]}
