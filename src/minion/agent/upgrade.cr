@@ -25,7 +25,7 @@ module Minion
       # TODO: Is there a cleaner way to auto-discover this path?
       exec_path : String =  Process.executable_path.not_nil!
       filename : String = exec_path.match(/.*(\/.*)/).not_nil![1]
-      root_dir = exec_path.sub(/#{filename}/, "")
+      root_dir = exec_path.sub(/#{filename}/, "").sub(/versions/, "")
 
       # 1. Query the API for the latest version.
       begin
@@ -61,13 +61,11 @@ module Minion
       end
 
       # 3. Run PWD/versions/minion-VERSION -t CONFIG=#{ENV["CONFIG"]}
-      output = IO::Memory.new
-      exit_code = Process.run("CONFIG=#{ENV["CONFIG"]} #{filename} -t", shell: true, output: output)
-
       # 4. If it returns exit code zero (0), proceed, else log that upgrade
       #    failed along with the STDERR output from that run
-      if !exit_code.success?
-        raise FailedToUpgrade.new("Test of new agent version failed, halting upgrade\n\n#{output}")
+      env = {"CONFIG" => ENV["CONFIG"]}
+      unless Process.run("#{filename} -t", shell: true, env: env).success?
+        raise FailedToUpgrade.new("Test of new agent version failed, halting upgrade")
         exit 1
       end
 
@@ -77,15 +75,11 @@ module Minion
         # Remove the symlink so we can recreate it
         File.new(filename: agent_filename).delete
       end
-      # output = IO::Memory.new
-      # unless Process.run("ln -s #{filename} #{root_dir}/bin/minion-agent", shell: true, output: output).success?
-      #   \n\n#{output}")
-      #   exit 1
-      # end
 
       begin
         File.symlink(old_path: filename, new_path: agent_filename)
       rescue exception
+        # TODO: Restore a symlink to the current executing program
         raise FailedToUpgrade.new("Could not symlink #{filename} to #{agent_filename}")
         exit 1
       end
