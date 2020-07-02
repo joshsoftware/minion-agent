@@ -3,7 +3,7 @@
     {
       "id": 1,
       "latest_version":"0.1.0",
-      "sha256":"ad2d3c84228b0d2107173a7291a33931b25de95c",
+      "md5":"317ce3eb8cca5b96add9aee187f318fb",
       "download_url":"http://localhost:3000/agent"
     }
   ]
