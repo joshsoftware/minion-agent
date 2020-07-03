@@ -29,7 +29,12 @@ module Minion
             ss.send("T", UUID.new, ["load_avg", loadavg])
           end
 
-          # TODO: Disk usage, swap
+          spawn name: "disk_usage" do
+            disk_usage = Telemetry.disk_usage
+            # ss.send("T", UUID.new, ["disk_usage_kb", disk_usage])
+          end
+
+          # swap
           sleep 5
         end
       end

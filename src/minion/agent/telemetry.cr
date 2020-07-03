@@ -1,8 +1,29 @@
+require "csv"
 require "hardware"
 
 module Minion
   class Agent
     class Telemetry
+      def self.disk_usage
+        begin
+          output = IO::Memory.new
+          Process.run(command: "df", args: ["-Pk"], output: output)
+          lines = output.to_s.chomp.split("\n")
+          keys = lines[0].split.map { |k| k.downcase }
+          keys.delete("on") # remove stray key since last column is "Mounted on"
+          values = lines[1..-1]
+          df = [] of Hash(String, String)
+          values.each do |v|
+            df << Hash.zip(keys, v.split)
+          end
+          #df = CSV.parse(lines[1..-1].map { |line| line.split }.map { |v| v.join(",") }.join("\n")).map { |line| pp line }# { |line| Hash.zip(keys, line) } # [keys.zip(line)] }
+pp df
+          return [{mount_point: "no-data", pct_used: 0}]
+        rescue exception
+          return [{mount_point: "no-data", pct_used: 0}]
+        end
+      end
+
       def self.custom(telemetry)
         puts "Looking for #{telemetry.command}"
         if File.exists?(telemetry.command) || Process.find_executable(telemetry.command)
