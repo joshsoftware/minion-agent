@@ -46,3 +46,25 @@ endian, that is:
 
 Those two bytes should be the first two sent, and then immediately after those
 bytes should come the other 66 bytes.
+
+# Agent
+
+Notes for the agent go here.
+
+## To Upgrade
+
+There are two sides to every upgrade: user and developer. The developer side
+comes first - here's the checklist for publishing an upgrade.
+
+1. Modify the version number in src/minion/agent/version.cr
+1. Modify it again in the API to match
+1. Publish the agent binary at the location the API says to find it
+
+From the user's side:
+
+1. Run `CONFIG=/full/path/to/config.yml /opt/minion/bin/minion-agent -u`
+
+This is assuming minion-agent is installed in `/opt` of course.
+
+This will upgrade to the latest version (see config.yml for where it looks for
+what the latest version actually _is_) and start the agent.

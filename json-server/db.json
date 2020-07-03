@@ -3,8 +3,8 @@
     {
       "id": 1,
       "latest_version":"0.1.0",
-      "sha256":"ad2d3c84228b0d2107173a7291a33931b25de95c",
-      "download":"http://localhost:3000/agent"
+      "md5":"754a525e8fe5e289a3933f0fcb132039",
+      "download_url":"http://localhost:3000/agent"
     }
   ]
 }

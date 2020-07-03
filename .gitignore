@@ -14,3 +14,6 @@
 
 # Ignore the testing stuff under json-server/public
 /json-server/public/agent
+
+# Ignore the versions subdir that minion-agent will try to create
+/versions

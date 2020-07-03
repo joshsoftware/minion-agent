@@ -5,6 +5,9 @@ module Minion
     include YAML::Serializable
     include YAML::Serializable::Unmapped
 
+    @[YAML::Field(key: "upgrade")]
+    property upgrade : String
+
     @[YAML::Field(key: "server_id")]
     property server_id : String
 

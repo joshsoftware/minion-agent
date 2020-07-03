@@ -7,9 +7,6 @@ module Minion
       cfg = Minion::Config.from_yaml(File.read(ENV["CONFIG"]))
       Minion::Agent.startup(cfg)
 
-      # Debug
-      Minion::Agent.upgrade
-
       ss = Minion::Client.new(
         host: cfg.streamserver_host,
         port: cfg.streamserver_port,
