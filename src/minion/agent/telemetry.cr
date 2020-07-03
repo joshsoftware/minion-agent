@@ -1,4 +1,3 @@
-require "csv"
 require "hardware"
 
 module Minion
@@ -16,11 +15,9 @@ module Minion
           values.each do |v|
             df << Hash.zip(keys, v.split)
           end
-          #df = CSV.parse(lines[1..-1].map { |line| line.split }.map { |v| v.join(",") }.join("\n")).map { |line| pp line }# { |line| Hash.zip(keys, line) } # [keys.zip(line)] }
-pp df
-          return [{mount_point: "no-data", pct_used: 0}]
+          return df
         rescue exception
-          return [{mount_point: "no-data", pct_used: 0}]
+          return [] of Hash(String, String)
         end
       end
 
