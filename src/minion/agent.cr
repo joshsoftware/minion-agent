@@ -5,6 +5,7 @@ require "./agent/startup"
 require "./agent/test"
 require "./agent/version"
 require "./agent/exec"
+require "./agent/utils"
 
 action : String = ""
 

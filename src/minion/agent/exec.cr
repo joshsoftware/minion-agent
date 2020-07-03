@@ -51,11 +51,9 @@ module Minion
         if File.exists?(service.file)
           spawn do
             File.open(service.file) do |fh|
-              puts "Opened file: #{service.file}"
               fh.seek(offset: 0, whence: IO::Seek::End)
               loop do
                 while line = fh.gets
-                  puts "Sending the following: #{line}"
                   ss.send(verb: "L", data: [service.service, line])
                 end
                 sleep 0.5
