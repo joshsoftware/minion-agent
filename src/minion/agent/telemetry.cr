@@ -13,7 +13,12 @@ module Minion
           values = lines[1..-1]
           df = [] of Hash(String, String)
           values.each do |v|
-            df << Hash.zip(keys, v.split)
+            tmp = v.split
+            if tmp[0] == "map" && tmp[1] == "auto_home"
+              # Delete the first index because it's a value with spaces in it
+              tmp.delete_at(0)
+            end
+            df << Hash.zip(keys, tmp)
           end
           return df
         rescue exception
