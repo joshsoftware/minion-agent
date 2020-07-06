@@ -29,7 +29,20 @@ module Minion
             ss.send("T", UUID.new, ["load_avg", loadavg])
           end
 
-          # TODO: Disk usage, swap
+          spawn name: "disk_usage" do
+            # This method returns an array of hashes structured like:
+            # {"filesystem" => "//microsoft@192.168.1.114/Media%203",
+            # "1024-blocks" => "488179708",
+            # "used" => "40646476",
+            # "available" => "447533232",
+            # "capacity" => "9%",
+            # "mounted" => "/Volumes/Media"},
+            Telemetry.disk_usage.each do |du|
+              ss.send("T", UUID.new, ["disk_usage_pct", du["mounted"], du["capacity"].gsub(/\%/, "")])
+            end
+          end
+
+          # swap
           sleep 5
         end
       end
