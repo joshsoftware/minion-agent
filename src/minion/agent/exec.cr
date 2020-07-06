@@ -7,9 +7,6 @@ module Minion
       cfg = Minion::Config.from_yaml(File.read(ENV["CONFIG"]))
       Minion::Agent.startup(cfg)
 
-      # Debug
-      Minion::Agent.upgrade
-
       ss = Minion::Client.new(
         host: cfg.streamserver_host,
         port: cfg.streamserver_port,
@@ -21,29 +18,43 @@ module Minion
       spawn name: "telemetry" do
         loop do
           # Report memory usage
-          mem = Telemetry.mem_in_use
-          ss.send("T", UUID.new, ["mem_used_kb", mem.to_s])
+          spawn name: "memory" do
+            mem = Telemetry.mem_in_use
+            ss.send("T", UUID.new, ["mem_used_kb", mem.to_s])
+          end
 
           # Report CPU usage
-          loadavg = Telemetry.load_avg
-          ss.send("T", UUID.new, ["load_avg", loadavg])
+          spawn name: "load_avg" do
+            loadavg = Telemetry.load_avg
+            ss.send("T", UUID.new, ["load_avg", loadavg])
+          end
 
           # TODO: Disk usage, swap
           sleep 5
         end
       end
 
+      cfg.telemetries.each do |telemetry|
+        puts "Spawning custom telemetry for #{telemetry.name}..."
+        spawn name: telemetry.name do
+          loop do
+            value = Telemetry.custom(telemetry).not_nil!
+            ss.send("T", UUID.new, [telemetry.name, value])
+            sleep telemetry.interval
+          end
+        end
+      end
+
+
       # Tail logs and report new lines
       cfg.tail_logs.each do |service|
         if File.exists?(service.file)
           spawn do
             File.open(service.file) do |fh|
-              puts "Opened file: #{service.file}"
               fh.seek(offset: 0, whence: IO::Seek::End)
               loop do
-                puts "Reading from #{service.file}..."
                 while line = fh.gets
-                  ss.send(verb: "L", data: [service.service, service.file, line])
+                  ss.send(verb: "L", data: [service.service, line])
                 end
                 sleep 0.5
               end

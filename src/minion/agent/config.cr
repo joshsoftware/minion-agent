@@ -5,6 +5,9 @@ module Minion
     include YAML::Serializable
     include YAML::Serializable::Unmapped
 
+    @[YAML::Field(key: "upgrade")]
+    property upgrade : String
+
     @[YAML::Field(key: "server_id")]
     property server_id : String
 
@@ -26,6 +29,9 @@ module Minion
     @[YAML::Field(key: "tail_logs")]
     property tail_logs : Array(Minion::Config::TailConfig)
 
+    @[YAML::Field(key: "telemetries")]
+    property telemetries : Array(Minion::Config::CustomTelemetry)
+
     @[YAML::Serializable::Options(emit_nulls: true)]
     class TailConfig
       include YAML::Serializable
@@ -36,6 +42,24 @@ module Minion
 
       @[YAML::Field(key: "file")]
       property file : String
+    end
+
+    @[YAML::Serializable::Options(emit_nulls: true)]
+    class CustomTelemetry
+      include YAML::Serializable
+      include YAML::Serializable::Unmapped
+
+      @[YAML::Field(key: "name")]
+      property name : String
+
+      @[YAML::Field(key: "command")]
+      property command : String
+
+      @[YAML::Field(key: "args")]
+      property args : Array(String)
+
+      @[YAML::Field(key: "interval")]
+      property interval : Int32
     end
   end
 end

@@ -5,6 +5,7 @@ require "./agent/startup"
 require "./agent/test"
 require "./agent/version"
 require "./agent/exec"
+require "./agent/utils"
 
 action : String = ""
 
@@ -17,6 +18,10 @@ OptionParser.new do |opts|
     action = "run"
   end
 
+  opts.on("-u", "--upgrade", "Upgrade the minion agent to the latest version") do
+    action = "upgrade"
+  end
+
   opts.on("-v", "--version", "Show agent version") do
     action = "version"
   end
@@ -25,6 +30,8 @@ end.parse
 case action
 when "test"
   Minion::Agent.test
+when "upgrade"
+  Minion::Agent.upgrade!
 when "version"
   puts Minion::Agent::VERSION
 else

@@ -3,6 +3,19 @@ require "hardware"
 module Minion
   class Agent
     class Telemetry
+      def self.custom(telemetry)
+        puts "Looking for #{telemetry.command}"
+        if File.exists?(telemetry.command) || Process.find_executable(telemetry.command)
+          output = IO::Memory.new
+          puts "Running #{telemetry.command} with args #{telemetry.args} ..."
+          Process.run("#{telemetry.command} \"${@}\"", shell: true, output: output, args: telemetry.args)
+          puts "Output: #{output}"
+          return output.to_s.chomp
+        else
+          puts "Could not find #{telemetry.command}"
+        end
+      end
+
       def self.load_avg
         begin
           # Here we're only interested in the first number reported by loadavg
