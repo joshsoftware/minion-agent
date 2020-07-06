@@ -3,13 +3,33 @@ require "hardware"
 module Minion
   class Agent
     class Telemetry
+      def self.disk_usage
+        begin
+          output = IO::Memory.new
+          Process.run(command: "df", args: ["-Pk"], output: output)
+          lines = output.to_s.chomp.split("\n")
+          keys = lines[0].split.map { |k| k.downcase }
+          keys.delete("on") # remove stray key since last column is "Mounted on"
+          values = lines[1..-1]
+          df = [] of Hash(String, String)
+          values.each do |v|
+            tmp = v.split
+            if tmp[0] == "map" && tmp[1] == "auto_home"
+              # Delete the first index because it's a value with spaces in it
+              tmp.delete_at(0)
+            end
+            df << Hash.zip(keys, tmp)
+          end
+          return df
+        rescue exception
+          return [] of Hash(String, String)
+        end
+      end
+
       def self.custom(telemetry)
-        puts "Looking for #{telemetry.command}"
         if File.exists?(telemetry.command) || Process.find_executable(telemetry.command)
           output = IO::Memory.new
-          puts "Running #{telemetry.command} with args #{telemetry.args} ..."
           Process.run("#{telemetry.command} \"${@}\"", shell: true, output: output, args: telemetry.args)
-          puts "Output: #{output}"
           return output.to_s.chomp
         else
           puts "Could not find #{telemetry.command}"
