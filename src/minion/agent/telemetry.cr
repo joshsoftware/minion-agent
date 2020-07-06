@@ -34,14 +34,14 @@ module Minion
           cmd = "vm_stat"
           vm_stat = IO::Memory.new
           Process.run(cmd, shell: true, output: vm_stat)
-          pages_active     : Int32 = vm_stat.to_s.match(/Pages active\:\s*(\d*)/).
-            not_nil![1].to_i.not_nil!
-          page_size        : Int32 = vm_stat.to_s.match(/\(page size of (\d*) bytes\)/).
-            not_nil![1].to_i.not_nil!
-          pages_wired      : Int32 = vm_stat.to_s.match(/Pages wired down\:\s*(\d*)/).
-            not_nil![1].to_i.not_nil!
-          pages_compressed : Int32 = vm_stat.to_s.match(/Pages stored in compressor\:\s*(\d*)/).
-            not_nil![1].to_i.not_nil!
+          pages_active : Int32 = vm_stat.to_s.match(/Pages active\:\s*(\d*)/)
+            .not_nil![1].to_i.not_nil!
+          page_size : Int32 = vm_stat.to_s.match(/\(page size of (\d*) bytes\)/)
+            .not_nil![1].to_i.not_nil!
+          pages_wired : Int32 = vm_stat.to_s.match(/Pages wired down\:\s*(\d*)/)
+            .not_nil![1].to_i.not_nil!
+          pages_compressed : Int32 = vm_stat.to_s.match(/Pages stored in compressor\:\s*(\d*)/)
+            .not_nil![1].to_i.not_nil!
 
           # Now we multiply the number of pages (active and wired) by the page
           # size to find out roughly how many bytes of memory are in use. We

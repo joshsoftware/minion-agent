@@ -43,7 +43,6 @@ module Minion
               loop do
                 puts "Reading from #{service.file}..."
                 while line = fh.gets
-                  puts "Sending the following: #{line}"
                   ss.send(verb: "L", data: [service.service, service.file, line])
                 end
                 sleep 0.5

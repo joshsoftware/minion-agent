@@ -4,7 +4,7 @@ module Minion
       # 0. Define the root location for /opt/minion or wherever minion's install
       #    directory is located.
       # TODO: Is there a cleaner way to auto-discover this path?
-      exec_path : String =  Process.executable_path.not_nil!
+      exec_path : String = Process.executable_path.not_nil!
       filename : String = exec_path.match(/.*(\/.*)/).not_nil![1]
       dir = exec_path.gsub(/#{filename}/, "")
 

@@ -130,9 +130,9 @@ streamserver = Minion::Client.new(
 spawn name: "telemetry" do
   loop do
     # Report memory usage
-    streamserver.send(verb: "T", data: ["mem_used_kb", mem_in_use.to_s])
+    #streamserver.send(verb: "T", data: ["mem_used_kb", mem_in_use.to_s])
 
-    streamserver.send(verb: "T", data: ["load_avg", load_avg])
+    #streamserver.send(verb: "T", data: ["load_avg", load_avg])
 
     sleep 5
   end

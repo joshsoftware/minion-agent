@@ -54,6 +54,16 @@ module Minion
       @remote_queue.send({verb, uuid, [@group, @server] + data})
     end
 
+    def send_command(
+      command : String,
+      *data,
+      &block : Frame ->
+    )
+      uuid = UUID.new
+      @response_bus[uuid.to_s] = {Time.monotonic, block}
+      @remote_queue.send({:command, uuid, [@group, @server, command] + data.to_a})
+    end
+
     # ----- Various class accessors -- use these to set defaults
 
     @@connection_failure_timeout : Int32 = CONNECTION_FAILURE_TIMEOUT
@@ -111,6 +121,8 @@ module Minion
     @remote_fiber : Fiber
     @local_fiber : Fiber
     @swamp_fiber : Fiber
+    @stream_server_fiber : Fiber
+    @command_runner_fiber : Fiber
 
     # @destination : Atomic(String)
 
@@ -120,7 +132,10 @@ module Minion
       @group = "",
       @server = UUID.new(identifier: build_identifier).to_s,
       @key = "",
-      fail_immediately = false
+      fail_immediately = false,
+      @command_runner : Proc(Minion::Frame, Nil) = ->(frame : Frame) do
+        self.command_response(frame.uuid, "received command arguments of: #{frame.data.inspect}")
+      end
     )
       # That's a lot of instance variables....
       @remote_queue = Channel(Tuple(String | Symbol, UUID | String, Array(String)) | Slice(UInt8)).new(100)
@@ -134,14 +149,15 @@ module Minion
       @reconnect_throttle_interval = klass.reconnect_throttle_interval
       @reconnection_fiber = nil
       @authenticated = false
-      @total_count = 0
       @logfile = nil
       @failed_at = nil
+      @command_bus = Channel(Frame).new
+      @response_bus = {} of String => Tuple(Time::Span, Proc(Frame, Nil))
 
       # Establish the initial connection.
       clear_failure
 
-      @remote_fiber, @local_fiber, @swamp_fiber = establish_fibers
+      @remote_fiber, @local_fiber, @swamp_fiber, @stream_server_fiber, @command_runner_fiber = establish_fibers
       connect(fail_immediately)
 
       # Tell the user we're authenticated
@@ -152,7 +168,6 @@ module Minion
 
     # ----- Various instance accessors
 
-    getter total_count
     getter connection_failure_timeout
 
     def server_id
@@ -241,12 +256,83 @@ module Minion
         end
       end
 
-      [remote_fiber, local_fiber, swamp_fiber]
+      stream_server_fiber = spawn(name: "stream-server") do
+        loop do
+          msg = read
+          STDERR.puts "GOT #{msg}"
+          if !msg.nil?
+            frame = Frame.new(msg)
+            handle_frame(frame)
+          else
+            sleep 0.1
+          end
+        end
+      end
+
+      command_runner_fiber = spawn(name: "command-runner") do
+        loop do
+          frame = @command_bus.receive?
+          if frame
+            spawn do
+              run_command(frame)
+            end
+          end
+        end
+      end
+
+      [remote_fiber, local_fiber, swamp_fiber, stream_server_fiber, command_runner_fiber]
+    end
+
+    def handle_frame(frame)
+      case frame.verb
+      when "L"
+        # It makes no sense to send logging messages to the agent; let 'em die.
+      when "R"
+        handle_response(frame)
+      when "T"
+        # It makes no sense to send telemetry messages to the agent; let 'em die'
+      when "C"
+        handle_command(frame)
+      else
+        # Any other frames currently die here; maybe in the future we log them or something?
+      end
+    end
+
+    def handle_command(frame)
+      @command_bus.send frame
+    end
+
+    def run_command(frame)
+      cr = @command_runner
+      unless cr.nil? || frame.nil?
+        spawn(name: "command #{frame.uuid}") do
+          cr.call(frame.not_nil!)
+        end
+      end
+    end
+
+    # This is invoked to return a response to a command. It requires the UUID of the command
+    # and an array of data strings returned by the command.
+    def command_response(command_uuid, data)
+      if data.is_a?(String)
+        data = [data]
+      end
+      send(verb: :response, data: [command_uuid.to_s] + data)
+    end
+
+    def handle_response(frame)
+      command_uuid = frame.data[0]
+      response_block = @response_bus[command_uuid] if @response_bus.has_key?(command_uuid)
+      if response_block
+        response_block[1].call(frame)
+        @response_bus.delete(command_uuid)
+      end
     end
 
     def connect(fail_immediately = false)
       @socket = open_connection(@host, @port)
       @io_details[@socket.not_nil!] = IoDetails.new
+      puts "Heading to authenticate with #{@io_details.keys.inspect}"
       authenticate
       raise FailedToAuthenticate.new(@host, @port) unless authenticated?
       clear_failure
@@ -275,6 +361,11 @@ module Minion
     # activities when the fiber is re-entered.
 
     def read(io = @socket)
+      while !@io_details.has_key?(io)
+        sleep 0.01
+        return nil
+      end
+
       details = @io_details[io]
       loop do
         if details.read_message_size
@@ -479,14 +570,11 @@ module Minion
 
     def authenticate
       begin
-        @remote_queue.send({
-          :command,
-          UUID.new,
-          [@group, @server, "authenticate-agent", @key],
-        })
-        until response = read
-          Fiber.yield
+        authentication_received = Channel(Frame).new
+        command_id = send_command("authenticate-agent", @key) do |frame|
+          authentication_received.send frame
         end
+        response = authentication_received.receive?
       rescue e : Exception
         STDERR.puts "\nauthenticate: #{e}\n#{e.backtrace.join("\n")}"
         response = nil
@@ -495,8 +583,7 @@ module Minion
       if response.nil?
         @authenticated = false
       else
-        response = Frame.new(response)
-        @authenticated = if response && response.data[0] =~ /accepted/
+        @authenticated = if response && response.data[1] =~ /accepted/
                            true
                          else
                            false
