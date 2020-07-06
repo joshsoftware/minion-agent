@@ -45,7 +45,6 @@ module Minion
         end
       end
 
-
       # Tail logs and report new lines
       cfg.tail_logs.each do |service|
         if File.exists?(service.file)

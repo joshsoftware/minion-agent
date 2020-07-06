@@ -122,6 +122,7 @@ module Minion
     @local_fiber : Fiber
     @swamp_fiber : Fiber
     @stream_server_fiber : Fiber
+    @command_runner : Proc(Frame, Nil) = ->(frame : Frame) {}
     @command_runner_fiber : Fiber
 
     # @destination : Atomic(String)
@@ -133,10 +134,10 @@ module Minion
       @server = UUID.new(identifier: build_identifier).to_s,
       @key = "",
       fail_immediately = false,
-      @command_runner : Proc(Minion::Frame, Nil) = ->(frame : Frame) do
+      closure_command_runner : T = ->(frame : Frame) do
         self.command_response(frame.uuid, "received command arguments of: #{frame.data.inspect}")
       end
-    )
+    ) forall T
       # That's a lot of instance variables....
       @remote_queue = Channel(Tuple(String | Symbol, UUID | String, Array(String)) | Slice(UInt8)).new(100)
       @local_queue = Channel(Tuple(String | Symbol, UUID | String, Array(String)) | Slice(UInt8)).new(100)
@@ -158,6 +159,8 @@ module Minion
       clear_failure
 
       @remote_fiber, @local_fiber, @swamp_fiber, @stream_server_fiber, @command_runner_fiber = establish_fibers
+      @command_runner = ->(frame : Frame) { closure_command_runner.call(frame) }
+
       connect(fail_immediately)
 
       # Tell the user we're authenticated
@@ -259,7 +262,6 @@ module Minion
       stream_server_fiber = spawn(name: "stream-server") do
         loop do
           msg = read
-          STDERR.puts "GOT #{msg}"
           if !msg.nil?
             frame = Frame.new(msg)
             handle_frame(frame)
