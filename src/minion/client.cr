@@ -134,7 +134,7 @@ module Minion
       @server = UUID.new(identifier: build_identifier).to_s,
       @key = "",
       fail_immediately = false,
-      closure_command_runner : T = ->(frame : Frame) do
+      command_runner : T = ->(frame : Frame) do
         self.command_response(frame.uuid, "received command arguments of: #{frame.data.inspect}")
       end
     ) forall T
@@ -159,7 +159,7 @@ module Minion
       clear_failure
 
       @remote_fiber, @local_fiber, @swamp_fiber, @stream_server_fiber, @command_runner_fiber = establish_fibers
-      @command_runner = ->(frame : Frame) { closure_command_runner.call(frame) }
+      @command_runner = ->(frame : Frame) { command_runner.call(frame) }
 
       connect(fail_immediately)
 
