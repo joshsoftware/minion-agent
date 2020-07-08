@@ -3,6 +3,29 @@ require "./upgrade"
 
 module Minion
   class Agent
+    class CommandExecutor
+      class_property? client : Minion::Client?
+
+      def self.call(frame : Frame)
+        pp frame
+        if frame.data[0] == "external"
+          command = frame.data[1]
+          argv = frame.data[2..-1]
+          stdout = IO::Memory.new
+          stderr = IO::Memory.new
+          process = Process.new(command: command, args: argv, output: stdout, error: stderr, shell: true)
+          process.wait
+          unless @@client.nil?
+            @@client.not_nil!.command_response(frame.uuid, stdout.to_s)
+          end
+        end
+      end
+    end
+  end
+end
+
+module Minion
+  class Agent
     def self.run
       cfg = Minion::Config.from_yaml(File.read(ENV["CONFIG"]))
       Minion::Agent.startup(cfg)
@@ -12,8 +35,11 @@ module Minion
         port: cfg.streamserver_port,
         group: cfg.group_id,
         server: cfg.server_id,
-        key: cfg.group_key
+        key: cfg.group_key,
+        command_runner: ::Minion::Agent::CommandExecutor
       )
+
+      ::Minion::Agent::CommandExecutor.client = ss
 
       spawn name: "telemetry" do
         loop do
@@ -30,20 +56,13 @@ module Minion
           end
 
           spawn name: "disk_usage" do
-            # This method returns an array of hashes structured like:
-            # {"filesystem" => "//microsoft@192.168.1.114/Media%203",
-            # "1024-blocks" => "488179708",
-            # "used" => "40646476",
-            # "available" => "447533232",
-            # "capacity" => "9%",
-            # "mounted" => "/Volumes/Media"},
             Telemetry.disk_usage.each do |du|
               ss.send("T", UUID.new, ["disk_usage_pct", du["mounted"], du["capacity"].gsub(/\%/, "")])
             end
           end
 
           # swap
-          sleep 5
+          sleep 60
         end
       end
 

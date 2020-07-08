@@ -68,3 +68,13 @@ This is assuming minion-agent is installed in `/opt` of course.
 
 This will upgrade to the latest version (see config.yml for where it looks for
 what the latest version actually _is_) and start the agent.
+
+## Issuing Commands
+
+I was going to throw together a little utility to insert commands, but the manual process:
+Create a 'commands' record for the command.
+Ensure that there is a 'servers' record for the agent.
+Create a 'servers_commands' record that links the command to run with the server to run it on.
+Insert the command_id into the 'command_queues' table.
+Send the notification signal with `notify agent_commands`
+That will run it, and get the response back into the command_responses table. It will update the servers_commands table, as well, with the time that the command was dispatched, and the time that the response was received, as well as the UUID of the

@@ -3,7 +3,7 @@ streamserver_host: 127.0.0.1
 streamserver_port: 47990
 group_id: "test-group-2"
 group_key: "798c733ba086c606fa8a925ab69bebf1cc44ee11a19ac81eaa4689774a6b6b04"
-server_id: "B45741B3-414E-4024-921C-8A7E69A2B3D0"
+server_id: "b45741b3-414e-4024-921c-8a7e69a2b3d0"
 server_name: "development-minion-agent"
 upgrade: "http://localhost:3000/api/v1/minion"
 tail_logs:
