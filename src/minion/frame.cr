@@ -12,12 +12,15 @@ module Minion
   # T - Telemetry
   # Q - Query Key/Value Store
   # S - Set Key/Value
+
+  alias PayloadType = Array(Array(String) | String) | Array(String)
+
   struct Frame
     def self.from_msgpack(buffer : Slice(UInt8))
-      unpacked = Tuple(String, String, Array(String)).from_msgpack(buffer).as(Tuple(String, String, Array(String)))
+      Tuple(String, String, PayloadType).from_msgpack(buffer).as(Tuple(String, String, PayloadType))
     end
 
-    def self.inflate(tup : Tuple(String, String, Array(String)))
+    def self.inflate(tup : Tuple(String, String, PayloadType))
       {tup[0], UUID.new(tup[1].to_s), tup[2]}
     end
 
@@ -28,16 +31,16 @@ module Minion
     @packed : Slice(UInt8)?
     @verb : String
 
-    def initialize(verb : String | Symbol, @uuid : UUID = UUID.new, @data : Array(String) = [] of String)
+    def initialize(verb : String | Symbol, @uuid : UUID = UUID.new, @data : PayloadType = [] of String)
       @verb = symbol_to_string(verb)
     end
 
-    def initialize(verb : String | Symbol, @uuid : String, @data : Array(String) = [] of String)
+    def initialize(verb : String | Symbol, @uuid : String, @data : PayloadType = [] of String)
       @uuid = UUID.new(@uuid.as(String))
       @verb = symbol_to_string(verb)
     end
 
-    def initialize(tuple : Tuple(String, String, Array(String)))
+    def initialize(tuple : Tuple(String, String, PayloadType))
       @verb, @uuid, @data = Frame.inflate(tuple)
     end
 

@@ -49,19 +49,43 @@ module Minion
     def send(
       verb : String | Symbol = "",
       uuid : UUID | String = UUID.new,
-      data : Array(String) = [@group, @server] of String
+      data : String|Array(Array(String)|String)|Array(String) = [] of String
     )
+      if data.is_a?(String)
+        data = [data]
+      end
+
       @remote_queue.send({verb, uuid, [@group, @server] + data})
     end
 
     def send_command(
       command : String,
-      *data,
+      data : String,
       &block : Frame ->
     )
+      d1 = [] of String
+      d2 = [] of Array(String)
+      d1 << data
+      d2 << d1
+      send_command_impl(command: command, data: d2, &block)
+    end
+
+    def send_command(
+      command : String,
+      data : Array(Array(String)) = [] of String,
+      &block : Frame ->
+    )
+      send_command_impl(command: command, data: data, &block)
+    end
+
+    def send_command_impl(
+      command : String,
+      data : Array(Array(String)),
+      &block : Frame ->
+    ) 
       uuid = UUID.new
       @response_bus[uuid.to_s] = {Time.monotonic, block}
-      @remote_queue.send({:command, uuid, [@group, @server, command] + data.to_a})
+      @remote_queue.send({:command, uuid, [@group, @server, command] + data})
     end
 
     # ----- Various class accessors -- use these to set defaults
@@ -135,12 +159,12 @@ module Minion
       @key = "",
       fail_immediately = false,
       command_runner : T = ->(frame : Frame) do
-        self.command_response(frame.uuid, "received command arguments of: #{frame.data.inspect}")
+        self.command_response(command_uuid: frame.uuid, stdout: "received command arguments of: #{frame.data.inspect}")
       end
     ) forall T
       # That's a lot of instance variables....
-      @remote_queue = Channel(Tuple(String | Symbol, UUID | String, Array(String)) | Slice(UInt8)).new(100)
-      @local_queue = Channel(Tuple(String | Symbol, UUID | String, Array(String)) | Slice(UInt8)).new(100)
+      @remote_queue = Channel(Tuple(String | Symbol, UUID | String, Array(Array(String)|String)|Array(String)) | Slice(UInt8)).new(100)
+      @local_queue = Channel(Tuple(String | Symbol, UUID | String, Array(Array(String)|String)|Array(String)) | Slice(UInt8)).new(100)
 
       @socket = nil
       klass = self.class
@@ -315,11 +339,11 @@ module Minion
 
     # This is invoked to return a response to a command. It requires the UUID of the command
     # and an array of data strings returned by the command.
-    def command_response(command_uuid, data)
-      if data.is_a?(String)
-        data = [data]
-      end
-      send(verb: :response, data: [command_uuid.to_s] + data)
+    def command_response(command_uuid, stdout : String | Array(String) = [""], stderr : String | Array(String) = [""])
+      stdout = [stdout] if stdout.is_a?(String)
+      stderr = [stderr] if stderr.is_a?(String)
+
+      send(verb: :response, data: [command_uuid.to_s, stdout, stderr])
     end
 
     def handle_response(frame)
@@ -419,7 +443,7 @@ module Minion
           end
 
           if details.message_bytes_read >= details.message_size
-            msg = Tuple(String, String, Array(String)).from_msgpack(details.message_buffer).as(Tuple(String, String, Array(String)))
+            msg = Tuple(String, String, Array(Array(String)|String)|Array(String)).from_msgpack(details.message_buffer).as(Tuple(String, String, Array(Array(String)|String)|Array(String)))
             details.read_message_body = false
             details.read_message_size = true
             details.message_size = 0_u16
@@ -463,12 +487,10 @@ module Minion
       end
     end
 
-    # TODO: This is gross. Use overloading instead of doing this like it's Ruby.
-    # def _send_remote(service, severity, message, flush_after_send = true)
     def _send_remote(
       verb : String | Symbol = "",
       uuid : UUID | String = UUID.new,
-      data : Array(String) = [@group, @server] of String
+      data : Array(Array(String)|String)|Array(String) = [@group, @server] of String
     )
       msg = Frame.new(verb, uuid, data)
       packed_msg = msg.to_msgpack
@@ -506,7 +528,7 @@ module Minion
     def _local_log(
       verb : String | Symbol = "",
       uuid : UUID | String = UUID.new,
-      data : Array(String) = [@group, @server] of String
+      data : Array(Array(String)|String)|Array(String) = [@group, @server] of String
     )
       msg = Frame.new(verb, uuid, data)
       packed_msg = msg.to_msgpack

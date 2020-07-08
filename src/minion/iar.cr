@@ -12,8 +12,8 @@ class Executor
 
   def self.call(frame : Minion::Frame)
     if frame.data[0] == "external"
-      command = frame.data[1]
-      argv = frame.data[2..-1]
+      command = frame.data[1].as(String)
+      argv = frame.data[2..-1].flatten
       stdout = IO::Memory.new
       stderr = IO::Memory.new
       process = Process.new(command: command, args: argv, output: stdout, error: stderr)
@@ -151,9 +151,9 @@ Executor.client = streamserver
 spawn name: "telemetry" do
   loop do
     # Report memory usage
-    # streamserver.send(verb: "T", data: ["mem_used_kb", mem_in_use.to_s])
+    streamserver.send(verb: "T", data: ["mem_used_kb", mem_in_use.to_s])
 
-    # streamserver.send(verb: "T", data: ["load_avg", load_avg])
+    streamserver.send(verb: "T", data: ["load_avg", load_avg])
 
     sleep 5
   end
