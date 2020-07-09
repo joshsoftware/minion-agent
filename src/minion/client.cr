@@ -81,7 +81,7 @@ module Minion
       command : String,
       data : Array(Array(String)),
       &block : Frame ->
-    ) 
+    )
       uuid = UUID.new
       @response_bus[uuid.to_s] = {Time.monotonic, block}
       @remote_queue.send({:command, uuid, [@group, @server, command] + data})
@@ -158,7 +158,7 @@ module Minion
       @key = "",
       fail_immediately = false,
       command_runner : T = ->(frame : Frame) do
-        self.command_response(command_uuid: frame.uuid, stdout: "received command arguments of: #{frame.data.inspect}")
+        self.command_response(uuid: frame.uuid, stdout: "received command arguments of: #{frame.data.inspect}", stderr: "received command arguments of: #{frame.data.inspect}")
       end
     ) forall T
       # That's a lot of instance variables....
