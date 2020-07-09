@@ -7,6 +7,7 @@ require "./agent/test"
 require "./agent/version"
 require "./agent/exec"
 require "./agent/utils"
+require "./agent/command_executor"
 
 action : String = ""
 

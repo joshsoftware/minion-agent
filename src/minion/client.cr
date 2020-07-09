@@ -338,11 +338,15 @@ module Minion
 
     # This is invoked to return a response to a command. It requires the UUID of the command
     # and an array of data strings returned by the command.
-    def command_response(command_uuid, stdout : String | Array(String) = [""], stderr : String | Array(String) = [""])
+    def command_response(
+      uuid,
+      stdout : String | Array(String) = [""],
+      stderr : String | Array(String) = [""]
+    )
       stdout = [stdout] if stdout.is_a?(String)
       stderr = [stderr] if stderr.is_a?(String)
 
-      send(verb: :response, data: [command_uuid.to_s, stdout, stderr])
+      send(verb: :response, data: [uuid.to_s, stdout, stderr])
     end
 
     def handle_response(frame)

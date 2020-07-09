@@ -3,29 +3,6 @@ require "./upgrade"
 
 module Minion
   class Agent
-    class CommandExecutor
-      class_property? client : Minion::Client?
-
-      def self.call(frame : Frame)
-        pp frame
-        if frame.data[0] == "external"
-          command = frame.data[1]
-          argv = frame.data[2..-1]
-          stdout = IO::Memory.new
-          stderr = IO::Memory.new
-          process = Process.new(command: command, args: argv, output: stdout, error: stderr, shell: true)
-          process.wait
-          unless @@client.nil?
-            @@client.not_nil!.command_response(frame.uuid, stdout.to_s)
-          end
-        end
-      end
-    end
-  end
-end
-
-module Minion
-  class Agent
     def self.run
       cfg = Minion::Config.from_yaml(File.read(ENV["CONFIG"]))
       Minion::Agent.startup(cfg)

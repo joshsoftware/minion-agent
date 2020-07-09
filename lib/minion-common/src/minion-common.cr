@@ -24,6 +24,9 @@ require "./minion/*"
 # The code uses a nonstandard UUID that encodes the nano-second precision time stamp
 # along with a six byte uniqifier.
 
+#  util.cr
+# These are collected utility methods.
+
 module Minion::Common
-  VERSION = "0.1.1"
+  VERSION = "0.1.2"
 end

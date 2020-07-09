@@ -7,24 +7,7 @@ require "./client"
 require "./agent/config"
 require "benchmark"
 require "hardware"
-
-class Executor
-  class_property? client : Minion::Client?
-
-  def self.call(frame : Minion::Frame)
-    if frame.data[0] == "external"
-      command = frame.data[1].as(String)
-      argv = frame.data[2..-1].flatten
-      stdout = IO::Memory.new
-      stderr = IO::Memory.new
-      process = Process.new(command: command, args: argv, output: stdout, error: stderr)
-      process.wait
-      unless @@client.nil?
-        @@client.not_nil!.command_response(frame.uuid, stdout.to_s)
-      end
-    end
-  end
-end
+require "./agent/command_executor"
 
 VERSION  = "0.1.0"
 CONFIG   = {} of String => String | Int32
@@ -145,9 +128,9 @@ streamserver = Minion::Client.new(
   group: CONFIG["group"].to_s,
   server: CONFIG["server"].to_s,
   key: CONFIG["key"].to_s,
-  command_runner: Executor)
+  command_runner: Minion::Agent::CommandExecutor)
 
-Executor.client = streamserver
+Minion::Agent::CommandExecutor.client = streamserver
 
 spawn name: "telemetry" do
   loop do
