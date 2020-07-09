@@ -1,6 +1,7 @@
 require "yaml"
 
 module Minion
+  @[YAML::Serializable::Options(emit_nulls: true)]
   class Config
     include YAML::Serializable
     include YAML::Serializable::Unmapped
