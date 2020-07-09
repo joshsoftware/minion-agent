@@ -1,0 +1,4 @@
+require "./*"
+
+module Hardware
+end

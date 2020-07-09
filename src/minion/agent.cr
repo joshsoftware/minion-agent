@@ -1,4 +1,5 @@
 require "option_parser"
+require "minion-common"
 require "./client"
 require "./agent/config"
 require "./agent/startup"

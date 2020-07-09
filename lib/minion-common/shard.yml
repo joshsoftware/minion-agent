@@ -1,0 +1,9 @@
+name: minion-common
+version: 0.1.0
+
+authors:
+  - kirk.haines@joshsoftware.com
+
+crystal: 0.35.1
+
+license: MIT

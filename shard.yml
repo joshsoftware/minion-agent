@@ -18,3 +18,5 @@ dependencies:
     github: Sija/retriable.cr
   hardware:
     github: crystal-community/hardware
+  minion-common:
+    github: joshsoftware/minion-common

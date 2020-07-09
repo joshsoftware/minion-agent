@@ -1,6 +1,7 @@
 # This is an interactive minion repl shell. It is a shell for interacting with Minion manually.
 
 require "option_parser"
+require "minion-common"
 require "fancyline"
 require "./client"
 require "./agent/config"

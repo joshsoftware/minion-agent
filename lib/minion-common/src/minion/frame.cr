@@ -13,8 +13,6 @@ module Minion
   # Q - Query Key/Value Store
   # S - Set Key/Value
 
-  alias PayloadType = Array(Array(String) | String) | Array(String)
-
   struct Frame
     def self.from_msgpack(buffer : Slice(UInt8))
       Tuple(String, String, PayloadType).from_msgpack(buffer).as(Tuple(String, String, PayloadType))

@@ -1,6 +1,5 @@
 require "./client/version"
-require "./io_details"
-require "./frame"
+require "minion-common"
 require "socket"
 require "msgpack"
 require "retriable"
