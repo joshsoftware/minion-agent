@@ -43,28 +43,32 @@ module Minion
         end
       end
 
-      cfg.telemetries.each do |telemetry|
-        puts "Spawning custom telemetry for #{telemetry.name}..."
-        spawn name: telemetry.name do
-          loop do
-            value = Telemetry.custom(telemetry).not_nil!
-            ss.send("T", UUID.new, [telemetry.name, value])
-            sleep telemetry.interval
+      unless cfg.telemetries.nil?
+        cfg.telemetries.not_nil!.each do |telemetry|
+          puts "Spawning custom telemetry for #{telemetry.name}..."
+          spawn name: telemetry.name do
+            loop do
+              value = Telemetry.custom(telemetry).not_nil!
+              ss.send("T", UUID.new, [telemetry.name, value])
+              sleep telemetry.interval
+            end
           end
         end
       end
 
       # Tail logs and report new lines
-      cfg.tail_logs.each do |service|
-        if File.exists?(service.file)
-          spawn do
-            File.open(service.file) do |fh|
-              fh.seek(offset: 0, whence: IO::Seek::End)
-              loop do
-                while line = fh.gets
-                  ss.send(verb: "L", data: [service.service, line])
+      unless cfg.tail_logs.nil?
+        cfg.tail_logs.not_nil!.each do |service|
+          if File.exists?(service.file)
+            spawn do
+              File.open(service.file) do |fh|
+                fh.seek(offset: 0, whence: IO::Seek::End)
+                loop do
+                  while line = fh.gets
+                    ss.send(verb: "L", data: [service.service, line])
+                  end
+                  sleep 0.5
                 end
-                sleep 0.5
               end
             end
           end
