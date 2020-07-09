@@ -29,7 +29,7 @@ module Minion
     @[YAML::Field(key: "tail_logs")]
     property tail_logs : Array(Minion::Config::TailConfig)
 
-    @[YAML::Field(key: "telemetries")]
+    @[YAML::Field(key: "telemetries", emit_null: true)]
     property telemetries : Array(Minion::Config::CustomTelemetry)
 
     @[YAML::Serializable::Options(emit_nulls: true)]
