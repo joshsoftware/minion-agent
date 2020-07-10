@@ -14,7 +14,7 @@ shards:
 
   minion-common:
     git: https://github.com/joshsoftware/minion-common.git
-    version: 0.1.0+git.commit.b542c5a59988fda8ba483043097b1dd23bc08d87
+    version: 0.1.0+git.commit.765a845df54bb67158cb51ea899c9faba8095f5d
 
   msgpack:
     git: https://github.com/crystal-community/msgpack-crystal.git

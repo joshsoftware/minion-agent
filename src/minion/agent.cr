@@ -37,5 +37,6 @@ when "upgrade"
 when "version"
   puts Minion::Agent::VERSION
 else
+  Minion::StatsRecord = Minion::Agent::Stats.new
   Minion::Agent.run
 end

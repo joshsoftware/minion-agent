@@ -8,6 +8,7 @@ require "./agent/config"
 require "benchmark"
 require "hardware"
 require "./agent/command_executor"
+require "./agent/stats"
 
 VERSION  = "0.1.0"
 CONFIG   = {} of String => String | Int32
@@ -131,6 +132,7 @@ streamserver = Minion::Client.new(
   command_runner: Minion::Agent::CommandExecutor)
 
 Minion::Agent::CommandExecutor.client = streamserver
+Minion::StatsRecord = Minion::Agent::Stats.new
 
 spawn name: "telemetry" do
   loop do

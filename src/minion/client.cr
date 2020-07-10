@@ -48,7 +48,7 @@ module Minion
     def send(
       verb : String | Symbol = "",
       uuid : UUID | String = UUID.new,
-      data : String|Array(Array(String)|String)|Array(String) = [] of String
+      data : PayloadType = [] of String
     )
       if data.is_a?(String)
         data = [data]
@@ -162,8 +162,8 @@ module Minion
       end
     ) forall T
       # That's a lot of instance variables....
-      @remote_queue = Channel(Tuple(String | Symbol, UUID | String, Array(Array(String)|String)|Array(String)) | Slice(UInt8)).new(100)
-      @local_queue = Channel(Tuple(String | Symbol, UUID | String, Array(Array(String)|String)|Array(String)) | Slice(UInt8)).new(100)
+      @remote_queue = Channel(FullOrPackedFrame).new(100)
+      @local_queue = Channel(FullOrPackedFrame).new(100)
 
       @socket = nil
       klass = self.class
@@ -446,7 +446,7 @@ module Minion
           end
 
           if details.message_bytes_read >= details.message_size
-            msg = Tuple(String, String, Array(Array(String)|String)|Array(String)).from_msgpack(details.message_buffer).as(Tuple(String, String, Array(Array(String)|String)|Array(String)))
+            msg = ReceivedFrame.from_msgpack(details.message_buffer).as(ReceivedFrame)
             details.read_message_body = false
             details.read_message_size = true
             details.message_size = 0_u16
@@ -493,7 +493,7 @@ module Minion
     def _send_remote(
       verb : String | Symbol = "",
       uuid : UUID | String = UUID.new,
-      data : Array(Array(String)|String)|Array(String) = [@group, @server] of String
+      data : PayloadType = [@group, @server] of String
     )
       msg = Frame.new(verb, uuid, data)
       packed_msg = msg.to_msgpack
@@ -531,7 +531,7 @@ module Minion
     def _local_log(
       verb : String | Symbol = "",
       uuid : UUID | String = UUID.new,
-      data : Array(Array(String)|String)|Array(String) = [@group, @server] of String
+      data : PayloadType = [@group, @server] of String
     )
       msg = Frame.new(verb, uuid, data)
       packed_msg = msg.to_msgpack
