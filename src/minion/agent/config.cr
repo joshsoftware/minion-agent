@@ -1,6 +1,7 @@
 require "yaml"
 
 module Minion
+  @[YAML::Serializable::Options(emit_nulls: true)]
   class Config
     include YAML::Serializable
     include YAML::Serializable::Unmapped
@@ -26,11 +27,11 @@ module Minion
     @[YAML::Field(key: "streamserver_port")]
     property streamserver_port : Int32
 
-    @[YAML::Field(key: "tail_logs")]
-    property tail_logs : Array(Minion::Config::TailConfig)
+    @[YAML::Field(key: "tail_logs", emit_null: true)]
+    property tail_logs : Array(Minion::Config::TailConfig)?
 
-    @[YAML::Field(key: "telemetries")]
-    property telemetries : Array(Minion::Config::CustomTelemetry)
+    @[YAML::Field(key: "telemetries", emit_null: true)]
+    property telemetries : Array(Minion::Config::CustomTelemetry)?
 
     @[YAML::Serializable::Options(emit_nulls: true)]
     class TailConfig
