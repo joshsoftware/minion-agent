@@ -1,13 +1,7 @@
 require "option_parser"
 require "minion-common"
 require "./client"
-require "./agent/config"
-require "./agent/startup"
-require "./agent/test"
-require "./agent/version"
-require "./agent/exec"
-require "./agent/utils"
-require "./agent/command_executor"
+require "./agent/*"
 
 action : String = ""
 
