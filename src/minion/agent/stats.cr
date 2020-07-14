@@ -13,7 +13,7 @@ module Minion
       getter logs_sent : UInt64
       getter telemetries_sent : UInt64
 
-      def initialize()
+      def initialize
         @start = Time.utc
         @start_monotonic = Time.monotonic
         @connections = 0_u64
@@ -61,21 +61,21 @@ module Minion
       def to_json
         gcs = GC.stats
         {
-          start: @start,
-          uptime: (Time.monotonic - @start_monotonic).total_seconds,
-          connections: @connections,
+          start:             @start,
+          uptime:            (Time.monotonic - @start_monotonic).total_seconds,
+          connections:       @connections,
           commands_received: @commands_received,
           commands_external: @commands_external,
           commands_internal: @commands_internal,
-          commands_error: @commands_error,
-          logs_sent: @logs_sent,
-          telemetry: @telemetries_sent,
-          now: Time.utc,
-          heap_size: gcs.heap_size,
-          free_bytes: gcs.free_bytes,
-          unmapped_bytes: gcs.unmapped_bytes,
-          bytes_since_gc: gcs.bytes_since_gc,
-          total_bytes: gcs.total_bytes
+          commands_error:    @commands_error,
+          logs_sent:         @logs_sent,
+          telemetry:         @telemetries_sent,
+          now:               Time.utc,
+          heap_size:         gcs.heap_size,
+          free_bytes:        gcs.free_bytes,
+          unmapped_bytes:    gcs.unmapped_bytes,
+          bytes_since_gc:    gcs.bytes_since_gc,
+          total_bytes:       gcs.total_bytes,
         }.to_json
       end
     end

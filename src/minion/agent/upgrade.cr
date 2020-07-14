@@ -21,10 +21,10 @@ module Minion
 
       # 0. Define the root location for /opt/minion or wherever minion's install
       #    directory is located.
-      # TODO: Is there a cleaner way to auto-discover this path?
-      exec_path : String = Process.executable_path.not_nil!
-      filename : String = exec_path.match(/.*(\/.*)/).not_nil![1]
-      root_dir = exec_path.sub(/#{filename}/, "").sub(/versions/, "")
+      exec_path = Path[Process.executable_path.not_nil!] # TODO: Under what conditions will Process.executable_path be nil?
+      filename = exec_path.basename
+      version_dir = exec_path.parent
+      root_dir = version_dir.parent
 
       # 1. Query the API for the latest version.
       begin
@@ -35,6 +35,7 @@ module Minion
 
       # 2. Download that version to PWD/versions/minion-VERSION
       #    a) Check if versions/ subdir exists
+      # TODO: Use mkdir_p and eliminate this if statement?
       if !Dir.exists?(File.join(root_dir, "versions"))
         #    b) Create it if not
         Dir.mkdir(File.join(root_dir, "versions"))

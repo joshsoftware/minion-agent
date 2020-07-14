@@ -11,6 +11,8 @@ require "./agent/command_executor"
 
 action : String = ""
 
+Minion::StatsRecord = Minion::Agent::Stats.new
+
 OptionParser.new do |opts|
   opts.on("-t", "--test", "Test the agent to make sure it works and can connect/authenticate with MINION") do
     action = "test"
@@ -37,6 +39,5 @@ when "upgrade"
 when "version"
   puts Minion::Agent::VERSION
 else
-  Minion::StatsRecord = Minion::Agent::Stats.new
   Minion::Agent.run
 end
