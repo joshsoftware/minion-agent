@@ -7,25 +7,25 @@ module Minion
     include YAML::Serializable::Unmapped
 
     @[YAML::Field(key: "upgrade")]
-    property upgrade : String
+    property upgrade : String = "http://getminion.io/api/v1/minion"
 
-    @[YAML::Field(key: "server_id")]
-    property server_id : String
+    @[YAML::Field(key: "server_id", emit_null: true)]
+    property server_id : String = ""
 
-    @[YAML::Field(key: "server_name")]
-    property server_name : String
+    @[YAML::Field(key: "server_name", emit_null: true)]
+    property server_name : String = ""
 
-    @[YAML::Field(key: "group_id")]
-    property group_id : String
+    @[YAML::Field(key: "group_id", emit_null: true)]
+    property group_id : String = ""
 
-    @[YAML::Field(key: "group_key")]
-    property group_key : String
+    @[YAML::Field(key: "group_key", emit_null: true)]
+    property group_key : String = ""
 
-    @[YAML::Field(key: "streamserver_host")]
-    property streamserver_host : String
+    @[YAML::Field(key: "streamserver_host", emit_null: true)]
+    property streamserver_host : String = ""
 
     @[YAML::Field(key: "streamserver_port")]
-    property streamserver_port : Int32
+    property streamserver_port : Int32 = 47990
 
     @[YAML::Field(key: "tail_logs", emit_null: true)]
     property tail_logs : Array(Minion::Config::TailConfig)?

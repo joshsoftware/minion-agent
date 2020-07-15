@@ -4,7 +4,9 @@ require "./upgrade"
 module Minion
   class Agent
     def self.run
-      cfg = Minion::Config.from_yaml(File.read(ENV["CONFIG"]))
+      Minion::ConfigSource.rewind
+      cfg = Minion::Config.from_yaml(Minion::ConfigSource.gets_to_end)
+
       Minion::Agent.startup(cfg)
 
       ss = Minion::Client.new(

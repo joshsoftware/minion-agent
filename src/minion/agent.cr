@@ -6,6 +6,7 @@ require "./agent/*"
 action : String = ""
 
 Minion::StatsRecord = Minion::Agent::Stats.new
+Minion::ConfigSource = ENV.has_key?("CONFIG") ? File.open("w+",ENV["CONFIG"]) : IO::Memory.new("---\n")
 
 OptionParser.new do |opts|
   opts.on("-t", "--test", "Test the agent to make sure it works and can connect/authenticate with MINION") do

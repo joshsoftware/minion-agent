@@ -53,15 +53,18 @@ def mem_in_use
   end
 end
 
+Minion::ConfigSource = ENV.has_key?("CONFIG") ? File.open("w+",ENV["CONFIG"]) : IO::Memory.new
 # Read the config (based on the CONFIG env variable) and set configuration opts
-if ENV.has_key?("CONFIG") && File.exists?(ENV["CONFIG"])
-  cfg = Minion::Config.from_yaml(File.read(ENV["CONFIG"]))
+begin
+  Minion::ConfigSource.rewind
+  cfg = Minion::Config.from_yaml(Minion::ConfigSource.gets_to_end)
   CONFIG["host"] = cfg.streamserver_host
   CONFIG["port"] = cfg.streamserver_port
   CONFIG["group"] = cfg.group_id
   CONFIG["server"] = cfg.server_id
   CONFIG["server_name"] = cfg.server_name
   CONFIG["key"] = cfg.group_key
+rescue ex
 end
 
 OptionParser.new do |opts|
@@ -120,8 +123,28 @@ end.parse
 CONFIG["host"] = "127.0.0.1" unless CONFIG.has_key?("host")
 CONFIG["port"] = 47990 unless CONFIG.has_key?("port")
 CONFIG["group"] = "" unless CONFIG.has_key?("group")
-CONFIG["server"] = Minion::UUID.new.to_s unless CONFIG.has_key?("server")
+CONFIG["server"] = Minion::UUID.new.to_s unless CONFIG.has_key?("server") && CONFIG["server"] != ""
 CONFIG["key"] = "" unless CONFIG.has_key?("key")
+
+STDERR.puts CONFIG.inspect
+
+Minion::ConfigSource.rewind
+cfg = Minion::Config.from_yaml(Minion::ConfigSource.gets_to_end)
+cfg.streamserver_host = CONFIG["host"].to_s
+cfg.streamserver_port =   CONFIG["port"].to_i
+cfg.group_id =   CONFIG["group"].to_s
+cfg.server_id =   CONFIG["server"].to_s
+cfg.server_name =   CONFIG["server_name"].to_s
+cfg.group_key =   CONFIG["key"].to_s
+Minion::ConfigSource.rewind
+mcs = Minion::ConfigSource
+if mcs.responds_to?(:clear)
+  mcs.clear
+end
+if mcs.responds_to?(:truncate)
+  mcs.try(&.truncate)
+end
+Minion::ConfigSource.write cfg.to_yaml.to_slice
 
 streamserver = Minion::Client.new(
   host: CONFIG["host"].to_s,

@@ -57,12 +57,14 @@ module Minion
           end
         when "get-config"
           # Return the path to the current running configuration, and the contents of the configuration file.
+          Minion::ConfigSource.rewind
+          mcs = Minion::ConfigSource
           @@client.try do |client|
             client.command_response(
               uuid: frame.uuid,
               stdout: {
-                "path"   => ENV["CONFIG"],
-                "config" => File.read(ENV["CONFIG"]),
+                "path"   => mcs.responds_to?(:path) ? mcs.path : "",
+                "config" => Minion::ConfigSource.gets_to_end,
               }.to_json
             )
           end
