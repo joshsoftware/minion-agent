@@ -91,7 +91,7 @@ module Minion
           # This will only succeed if the agent can determine that the configuration file that it was given
           # is valid.
           cfg_text = frame.data[0]
-          
+
           cfg = ""
           error = false
           begin
@@ -137,7 +137,7 @@ module Minion
 
           # The config parsed OK, and a connection could be made back to the streamserver using it,
           # so it is probably good.  Write it.
-          File.open("w",ENV["CONFIG"]) do |fh|
+          File.open("w", ENV["CONFIG"]) do |fh|
             fh.write cfg_text.to_s.to_slice
           end
 

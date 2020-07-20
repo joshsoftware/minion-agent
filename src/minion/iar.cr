@@ -53,7 +53,7 @@ def mem_in_use
   end
 end
 
-Minion::ConfigSource = ENV.has_key?("CONFIG") ? File.open("w+",ENV["CONFIG"]) : IO::Memory.new
+Minion::ConfigSource = ENV.has_key?("CONFIG") ? File.open("w+", ENV["CONFIG"]) : IO::Memory.new
 # Read the config (based on the CONFIG env variable) and set configuration opts
 begin
   Minion::ConfigSource.rewind
@@ -126,16 +126,14 @@ CONFIG["group"] = "" unless CONFIG.has_key?("group")
 CONFIG["server"] = Minion::UUID.new.to_s unless CONFIG.has_key?("server") && CONFIG["server"] != ""
 CONFIG["key"] = "" unless CONFIG.has_key?("key")
 
-STDERR.puts CONFIG.inspect
-
 Minion::ConfigSource.rewind
 cfg = Minion::Config.from_yaml(Minion::ConfigSource.gets_to_end)
 cfg.streamserver_host = CONFIG["host"].to_s
-cfg.streamserver_port =   CONFIG["port"].to_i
-cfg.group_id =   CONFIG["group"].to_s
-cfg.server_id =   CONFIG["server"].to_s
-cfg.server_name =   CONFIG["server_name"].to_s
-cfg.group_key =   CONFIG["key"].to_s
+cfg.streamserver_port = CONFIG["port"].to_i
+cfg.group_id = CONFIG["group"].to_s
+cfg.server_id = CONFIG["server"].to_s
+cfg.server_name = CONFIG["server_name"].to_s
+cfg.group_key = CONFIG["key"].to_s
 Minion::ConfigSource.rewind
 mcs = Minion::ConfigSource
 if mcs.responds_to?(:clear)

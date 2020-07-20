@@ -71,7 +71,7 @@ module Minion
 
     def send_command(
       command : String,
-      data : Array(Array(String)) = [] of String,
+      data : Array(Array(String)) = [] of Array(String),
       &block : Frame ->
     )
       send_command_impl(command: command, data: data, &block)
@@ -188,6 +188,25 @@ module Minion
 
       # Tell the user we're authenticated
       if @authenticated == true
+        spawn do
+          start_at = Time.monotonic
+          heartbeat_received = Channel(Frame).new
+          loop do
+            begin
+              command_id = send_command("heartbeat") do |frame|
+                heartbeat_received.send frame
+              end
+              response = heartbeat_received.receive?
+            rescue ex : Exception
+              STDERR.puts "\nheartbeat: #{ex}\n#{ex.backtrace.join("\n")}"
+              response = nil
+            end
+            # This will calculate the amount of time that it takes to accomplish the heartbeat,
+            # and adjust sleep time accordingly so that there is no long term creep -- it will
+            # correct to intervals of exactly 60 seconds.
+            sleep (60 - ((Time.monotonic - start_at).to_f % 60.0)) # TODO: This should be configurable
+          end
+        end
         puts "Minion Agent Authenticated!"
       end
     end
