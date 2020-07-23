@@ -21,6 +21,8 @@ module Minion
       ::Minion::Agent::CommandExecutor.client = ss
 
       spawn name: "telemetry" do
+        start_at = Time.monotonic
+
         loop do
           # Report memory usage
           spawn name: "memory" do
@@ -35,13 +37,11 @@ module Minion
           end
 
           spawn name: "disk_usage" do
-            Telemetry.disk_usage.each do |du|
-              ss.send("T", UUID.new, ["disk_usage_pct", du["mounted"], du["capacity"].gsub(/\%/, "")])
-            end
+            ss.send("T", UUID.new, [{"disk_usage" => Telemetry.disk_usage}.to_json])
           end
 
           # swap
-          sleep 60
+          sleep (60 - ((Time.monotonic - start_at).to_f % 60.0)) # Avoid clock creep from fixed sleep intervals.
         end
       end
 
