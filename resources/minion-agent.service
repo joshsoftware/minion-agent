@@ -1,0 +1,15 @@
+[Unit]
+Description=Minion agent for collecting logs and telemetry data, and for managing the server.
+After=network.target
+
+[Service]
+Environment="CONFIG=/opt/minion/config.yml"
+WorkingDirectory=/opt/minion
+ExecStart=/opt/minion/bin/minion-agent
+ExecStop=/bin/kill -s QUIT $MAINPID
+User=root
+Group=root
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
