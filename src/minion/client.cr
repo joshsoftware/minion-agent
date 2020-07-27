@@ -372,14 +372,23 @@ module Minion
       command_uuid = frame.data[0]
       response_block = @response_bus[command_uuid] if @response_bus.has_key?(command_uuid)
       if response_block
-        response_block[1].call(frame)
+        response_block[1].call(frame) rescue nil
         @response_bus.delete(command_uuid)
       end
     end
 
     def connect(fail_immediately = false)
-      @socket = open_connection(@host, @port)
+      on_proc = ->(ex : Exception, attempt : Int32, elapsed : Time::Span, interval : Time::Span) { !fail_immediately }
+      Retriable.retry(
+        on: on_proc, # Don't retry if fail_immediately is true.
+        max_interval: 5.minute,
+        max_attempts: 0_u32 &- 1,
+        multiplier: 1.05
+      ) do
+        @socket = open_connection(@host, @port)
+      end
       @io_details[@socket.not_nil!] = IoDetails.new
+      clean_io_details
       puts "Heading to authenticate with #{@io_details.keys.inspect}"
       authenticate
       raise FailedToAuthenticate.new(@host, @port) unless authenticated?
@@ -391,9 +400,11 @@ module Minion
 
       STDERR.puts e
       STDERR.puts e.backtrace.inspect
-      register_failure
-      close_connection
-      setup_reconnect_fiber unless @reconnection_fiber && !@reconnection_fiber.not_nil!.dead?
+      handle_failure
+    end
+
+    def clean_io_details
+      
     end
 
     # Read a message from the wire using a length header before the msgpack payload.
@@ -479,6 +490,9 @@ module Minion
         break if (io.is_a?(File) && io.size == io.pos) || !io.is_a?(File)
       end
       nil
+    rescue
+      handle_failure
+      nil
     end
 
     def setup_local_logging
@@ -496,14 +510,13 @@ module Minion
       @authenticated = false
       return if @reconnection_fiber
       @reconnection_fiber = spawn do
-        loop do
-          sleep reconnect_throttle_interval || 10
-          begin
-            connect
-          rescue Exception
-            nil
+        # From a practical POV, this should only happen if the authentication is broken.
+        # This will coarsely retry three times, then quit trying.
+        Retriable.retry(base_interval: 1.minute, max_attempts: 3, multiplier: 1.5) do
+          connect
+          unless @socket && !closed?
+            raise "retry"
           end
-          break if @socket && !closed?
         end
         @reconnection_fiber = nil
       end
@@ -562,7 +575,7 @@ module Minion
     end
 
     def _local_log_impl(packed_msg)
-      setup_local_logging unless @logfile
+      setup_local_logging
       @logfile.not_nil!.flock_exclusive(true)
       ssb = @io_details[@logfile].send_size_buffer
       IO::ByteFormat::BigEndian.encode(packed_msg.size.to_u16, ssb)
@@ -586,6 +599,12 @@ module Minion
         s.close if !s.closed?
         @io_details.delete(s)
       end
+    end
+
+    def handle_failure
+      register_failure
+      close_connection
+      setup_reconnect_fiber unless @reconnection_fiber && !@reconnection_fiber.not_nil!.dead?
     end
 
     def register_failure
