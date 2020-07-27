@@ -5,6 +5,16 @@ authors:
   - Kirk Haines <wyhaines@gmail.com>
   - J. Austin Hughey <jah@jah.io>
 
+targets:
+  iar:
+    main: src/minion/iar.cr
+  agent:
+    main: src/minion/agent.cr
+
+executables:
+  - iar
+  - agent
+
 crystal: 0.35.1
 
 license: MIT
