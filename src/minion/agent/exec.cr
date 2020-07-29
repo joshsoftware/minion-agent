@@ -37,7 +37,7 @@ module Minion
           end
 
           spawn name: "disk_usage" do
-            ss.send("T", UUID.new, [{"disk_usage" => Telemetry.disk_usage}.to_json])
+            ss.send("T", UUID.new, {"disk_usage" => Telemetry.disk_usage})
           end
 
           # swap

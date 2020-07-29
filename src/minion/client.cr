@@ -48,13 +48,19 @@ module Minion
     def send(
       verb : String | Symbol = "",
       uuid : UUID | String = UUID.new,
-      data : PayloadType = [] of String
+#      data : PayloadType | Hash(String, String | Int32 | Float32) = [] of String
+      data = [] of String
     )
+      data_to_send = uninitialized PayloadType
       if data.is_a?(String)
-        data = [data]
+        data_to_send = [data]
+      elsif data.is_a?(Hash)
+        data_to_send = ["JSON:" + data.to_json]
+      else
+        data_to_send = data.as(PayloadType)
       end
 
-      @remote_queue.send({verb, uuid, [@group, @server] + data})
+      @remote_queue.send({verb, uuid, [@group, @server] + data_to_send})
     end
 
     def send_command(
@@ -404,7 +410,9 @@ module Minion
     end
 
     def clean_io_details
-      
+      @io_details.reject! do |key, value|
+        key.responds_to?(:closed?) && key.closed?
+      end
     end
 
     # Read a message from the wire using a length header before the msgpack payload.
