@@ -1,0 +1,26 @@
+---
+streamserver_host: "streamserver.getminion.io"
+streamserver_port: 47990
+group_id: "test-group-2"
+group_key: "798c733ba086c606fa8a925ab69bebf1cc44ee11a19ac81eaa4689774a6b6b04"
+server_id: "RANDOM-UUID-OR-LEAVE-DELETE-FOR-RANDOM-GENERATION"
+server_name: "HUMAN-FRIENDLY-NAME"
+upgrade: "http://getminion.io/api/v1/minion"
+tail_logs:
+telemetries:
+    - name:     "memtotal_kb"
+      command:  "cat /proc/meminfo | grep MemTotal | awk '{print $2}'"
+      args:     []
+      interval: 14400
+    - name:     "memfree_kb"
+      command:  "cat /proc/meminfo | grep MemFree | awk '{print $2}'"
+      args:     []
+      interval: 600
+    - name:     "buffers_kb"
+      command:  "cat /proc/meminfo | grep Buffers | awk '{print $2}'"
+      args:     []
+      interval: 600
+    - name:     "cached_kb"
+      command:  "cat /proc/meminfo | grep Cached | awk '{print $2}'"
+      args:     []
+      interval: 600
