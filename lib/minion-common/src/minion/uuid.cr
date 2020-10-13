@@ -44,6 +44,7 @@ module Minion
     @bytes : Slice(UInt8) = Slice(UInt8).new(16)
     @seconds_and_nanoseconds : Tuple(Int64, Int32)?
     @timestamp : Time?
+    @utc : Time?
     @location : Time::Location = Time::Location.local
 
     def initialize(uuid : String)
@@ -62,7 +63,8 @@ module Minion
       id = if identifier.is_a?(String)
              buf = Slice(UInt8).new(6)
              number_of_bytes = identifier.size < 6 ? identifier.size : 6
-             buf[0, number_of_bytes].copy_from(identifier.to_slice[0, number_of_bytes])
+             buf[0, number_of_bytes].copy_from(identifier.hexbytes[0, number_of_bytes])
+             buf
            else
              identifier
            end
@@ -96,8 +98,13 @@ module Minion
     def timestamp
       return @timestamp if @timestamp
       sns = seconds_and_nanoseconds
-      puts sns.inspect
       @timestamp = Time.new(seconds: sns[0], nanoseconds: sns[1], location: @location)
+    end
+
+    def utc
+      return @utc if @utc
+      sns = seconds_and_nanoseconds
+      @utc = Time.utc(seconds: sns[0], nanoseconds: sns[1])
     end
 
     def to_s

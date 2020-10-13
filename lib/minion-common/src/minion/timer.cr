@@ -3,7 +3,7 @@ module Minion
     property interval
     property periodic
 
-    def initialize(@interval = 1, @periodic = false, &blk)
+    def initialize(@interval : Int32 | Float32 = 1, @periodic = false, &blk : Minion::Timer ->)
       @canceled = false
       @block = blk
       create_timer
@@ -13,7 +13,7 @@ module Minion
       spawn do
         loop do
           sleep @interval
-          @block.call unless @canceled
+          @block.call(self) unless @canceled
           break if @canceled || !@periodic
         end
       end

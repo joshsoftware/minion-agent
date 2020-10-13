@@ -15,7 +15,7 @@ shards:
     version: 0.2.2
   hardware:
     git: https://github.com/crystal-community/hardware.git
-    version: 0.5.1
+    version: 0.5.2
   minion-common:
     git: https://github.com/joshsoftware/minion-common.git
-    version: 0.1.0+git.commit.765a845df54bb67158cb51ea899c9faba8095f5d
+    version: 0.2.3+git.commit.b92cba63457fffcf6f89061a46b47b6563c80481

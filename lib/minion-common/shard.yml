@@ -1,5 +1,5 @@
 name: minion-common
-version: 0.1.0
+version: 0.2.3
 
 authors:
   - kirk.haines@joshsoftware.com
@@ -7,3 +7,8 @@ authors:
 crystal: 0.35.1
 
 license: MIT
+
+dependencies:
+  msgpack:
+    github: crystal-community/msgpack-crystal
+

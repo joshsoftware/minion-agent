@@ -1,3 +1,5 @@
+require "./error"
+
 # CPU related informations of your system.
 #
 # ```
@@ -16,7 +18,7 @@ struct Hardware::CPU
   # Must be lower than `System.cpu_count`, or `nil` for the whole cores in total.
   def initialize(number : Int32? = nil, parse_stats : Bool = true)
     if @number = number
-      raise "CPU number must be superior or equal to 0, and inferior to #{System.cpu_count}" unless 0 <= number < System.cpu_count
+      raise Error.new "CPU number must be superior or equal to 0, and inferior to #{System.cpu_count}" unless 0 <= number < System.cpu_count
     end
     parse_stat_file if parse_stats
   end
@@ -25,14 +27,14 @@ struct Hardware::CPU
     {% stats = %w(user nice system idle iowait irq softirq steal guest guest_nice) %}
     {% for stat in stats %}
     # Returns the {{stat}} stat field.
-    getter {{stat.id}} : Int32 { parse_stat_file; @{{stat.id}} || raise "Field not parsed: '{{stat.id}}'" }
+    getter {{stat.id}} : Int64 { parse_stat_file; @{{stat.id}} || raise Error.new "Field not parsed: '{{stat.id}}'" }
     {% end %}
 
     private def parse_stat_line(column_num : Int32, buffer : IO)
       case column_num
       {% i = 1 %}
       {% for stat in stats %}
-      when {{i}} then @{{stat.id}} = buffer.to_s.to_i
+      when {{i}} then @{{stat.id}} = buffer.to_s.to_i64
       {% i = i + 1 %}
       {% end %}
       end
@@ -69,13 +71,13 @@ struct Hardware::CPU
   end
 
   # Sum of `user`, `nice`, `system`, `irq`, `softirq` and `steal`.
-  getter used : Int32 { user + nice + system + irq + softirq + steal }
+  getter used : Int64 { user + nice + system + irq + softirq + steal }
 
   # Sum of `idle` and `iowait`.
-  getter idle_total : Int32 { idle + iowait }
+  getter idle_total : Int64 { idle + iowait }
 
   # Sum of `used` and `idle_total`
-  getter total : Int32 { used + idle_total }
+  getter total : Int64 { used + idle_total }
 
   # Returns each CPU usage in percentage based on the previous `CPU`.
   def usage(previous_cpu : CPU = self) : Float64
@@ -94,7 +96,7 @@ struct Hardware::CPU
   # ```
   def usage! : Float64
     # 100 * Usage Time / Total Time
-    @user || raise "Stat file not previously parsed"
+    @user || raise Error.new "Stat file not previously parsed"
     previous_cpu = self
     @used = @idle_total = @total = nil
     parse_stat_file

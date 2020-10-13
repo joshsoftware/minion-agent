@@ -27,6 +27,10 @@ require "./minion/*"
 #  util.cr
 # These are collected utility methods.
 
+#  splay_tree_map.cr
+# This is a _size limited_ splay tree map. It is useful for implementing caches that
+# do not have unbounded size limitations.
+
 module Minion::Common
-  VERSION = "0.1.3"
+  VERSION = "0.2.1"
 end
