@@ -106,6 +106,7 @@ module Minion
               File.open(service.file) do |fh|
                 fh.seek(offset: 0, whence: IO::Seek::End) if seek_to_end
                 seek_to_end = true
+                buffer = String::Builder.new 
                 loop do
                   new_size = fh.size
                   if new_size < previous_file_size
@@ -115,9 +116,16 @@ module Minion
                     previous_file_size = new_size
                   end
 
+                  # It is possible in some cases for a partial write to get read before the full
+                  # line is written. So the agent can never assume that it has received the full
+                  # line until the \n is found at the end of it.
                   while chunk = fh.gets(delimiter: '\n')
                     if chunk
-                      client.send(verb: "L", data: [service.service, chunk.chomp])
+                      buffer << chunk.chomp
+                      if chunk.not_nil![-1] == '\n'
+                        client.send(verb: "L", data: [service.service, buffer.to_s])
+                        buffer = String::Builder.new
+                      end
                     end
                   end
 
