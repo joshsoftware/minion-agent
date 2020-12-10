@@ -57,7 +57,6 @@ module Minion
       #    e) Compare shasum to upgrade_data shasum
       if md5sum != upgrade_data.md5
         raise FailedToUpgrade.new("MD5 sums do not match; try again")
-        exit 1
       end
 
       # 3. Run PWD/versions/minion-VERSION -t CONFIG=#{ENV["CONFIG"]}
@@ -66,7 +65,6 @@ module Minion
       env = {"CONFIG" => ENV["CONFIG"]}
       unless Process.run("#{filename} -t", shell: true, env: env).success?
         raise FailedToUpgrade.new("Test of new agent version failed, halting upgrade")
-        exit 1
       end
 
       # 5. Symlink PWD/bin/minion-agent to PWD/versions/minion-VERSION
@@ -81,7 +79,6 @@ module Minion
       rescue exception
         # TODO: Restore a symlink to the current executing program
         raise FailedToUpgrade.new("Could not symlink #{filename} to #{agent_filename}")
-        exit 1
       end
 
       # 6. Replace this running process with bin/minion-agent (Process.exec)

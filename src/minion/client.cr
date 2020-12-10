@@ -48,7 +48,7 @@ module Minion
     def send(
       verb : String | Symbol = "",
       uuid : UUID | String = UUID.new,
-#      data : PayloadType | Hash(String, String | Int32 | Float32) = [] of String
+      #      data : PayloadType | Hash(String, String | Int32 | Float32) = [] of String
       data = [] of String
     )
       data_to_send = uninitialized PayloadType
@@ -192,20 +192,28 @@ module Minion
 
       connect(fail_immediately)
 
-      # Tell the user we're authenticated
       if @authenticated == true
         spawn do
           start_at = Time.monotonic
           heartbeat_received = Channel(Frame).new
           loop do
             begin
-              command_id = send_command("heartbeat") do |frame|
+              send_command("heartbeat") do |frame|
                 heartbeat_received.send frame
               end
-              response = heartbeat_received.receive?
+    
+              select
+              when heartbeat_received.receive?
+                # The receive is mostly just accounting. If the send fails because of a failed
+                # connection, then the heartbeat_received channel will never a frame pushed
+                # into it, which means that this would normally hang forever
+              when timeout(57.seconds)
+                # but this clause bails out after 57 seconds. If we don't get it by then, just
+                # assume that it isn't happening, and go to the next iteration.
+              end
             rescue ex : Exception
-              STDERR.puts "\nheartbeat: #{ex}\n#{ex.backtrace.join("\n")}"
-              response = nil
+              # Just swallow the failure if the heartbeat fails. Maybe this should actually log?
+              nil
             end
             # This will calculate the amount of time that it takes to accomplish the heartbeat,
             # and adjust sleep time accordingly so that there is no long term creep -- it will
@@ -213,7 +221,6 @@ module Minion
             sleep (60 - ((Time.monotonic - start_at).to_f % 60.0)) # TODO: This should be configurable
           end
         end
-        puts "Minion Agent Authenticated!"
       end
     end
 
@@ -410,7 +417,7 @@ module Minion
     end
 
     def clean_io_details
-      @io_details.reject! do |key, value|
+      @io_details.reject! do |key, _|
         key.responds_to?(:closed?) && key.closed?
       end
     end
@@ -434,6 +441,7 @@ module Minion
       end
 
       details = @io_details[io]
+
       loop do
         if details.read_message_size
           if details.size_read == 0_u16
@@ -513,17 +521,15 @@ module Minion
     end
 
     def setup_reconnect_fiber
+      return if @reconnection_fiber
       @socket && @socket.not_nil!.close rescue nil
       @socket = nil
       @authenticated = false
-      return if @reconnection_fiber
       @reconnection_fiber = spawn do
-        # From a practical POV, this should only happen if the authentication is broken.
-        # This will coarsely retry three times, then quit trying.
-        Retriable.retry(base_interval: 1.minute, max_attempts: 3, multiplier: 1.5) do
+        Retriable.retry(on: Exception, base_interval: 1.minute, max_attempts: 3, multiplier: 1.5) do
           connect
           unless @socket && !closed?
-            raise "retry"
+            raise "Retry"
           end
         end
         @reconnection_fiber = nil
@@ -554,7 +560,6 @@ module Minion
         logf = @logfile
         if !logf.nil?
           logf.close
-          logf = nil
         end
         ssb = @io_details[sock].send_size_buffer
         IO::ByteFormat::BigEndian.encode(packed_msg.size.to_u16, ssb)
@@ -644,7 +649,7 @@ module Minion
     def authenticate
       begin
         authentication_received = Channel(Frame).new
-        command_id = send_command("authenticate-agent", @key) do |frame|
+        send_command("authenticate-agent", @key) do |frame|
           authentication_received.send frame
         end
         response = authentication_received.receive?
@@ -680,8 +685,8 @@ module Minion
     end
 
     def drain_the_swamp
-      Retriable.retry(max_interval: 1.minute, max_attempts: 0_u32 &- 1, multiplier: 1.05) do
-        raise "retry" if @socket.nil? || @socket.not_nil!.closed? || !@authenticated
+      Retriable.retry(on: Exception, max_interval: 1.minute, max_attempts: 0_u32 &- 1, multiplier: 1.05) do
+        raise "Retry" if @socket.nil? || @socket.not_nil!.closed? || !@authenticated
 
         # As soon as we start emptying the local log file, ensure that no data
         # gets missed because of IO buffering. Otherwise, during high rates of
@@ -714,8 +719,6 @@ module Minion
           end
         end
       end
-    rescue e : Exception
-      STDERR.puts "ERROR SENDING LOCALLY SAVED LOGS: #{e}\n#{e.backtrace.inspect}"
     end
 
     def authenticated?

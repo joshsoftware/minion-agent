@@ -12,7 +12,7 @@ module Minion
       Minion::Agent.startup(cfg)
 
       begin
-        ss = Minion::Client.new(
+        Minion::Client.new(
           host: cfg.streamserver_host,
           port: cfg.streamserver_port,
           group: cfg.group_id,

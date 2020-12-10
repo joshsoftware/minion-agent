@@ -30,3 +30,5 @@ dependencies:
     github: crystal-community/hardware
   minion-common:
     github: joshsoftware/minion-common
+  zstd:
+    github: didactic-drunk/zstd.cr

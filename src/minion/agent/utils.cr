@@ -9,12 +9,12 @@ module Minion
           output = IO::Memory.new
           begin
             Process.run(command: "uname", output: output)
-            return output.to_s
+            output.to_s
           rescue exception
-            return "Windows"
+            "Windows"
           end
         else
-          return "Windows"
+          "Windows"
         end
       end
     end
