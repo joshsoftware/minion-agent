@@ -1,0 +1,21 @@
+---
+version: 1.0
+shards:
+  msgpack:
+    git: https://github.com/crystal-community/msgpack-crystal.git
+    version: 0.17.1
+  cute:
+    git: https://github.com/Papierkorb/cute.git
+    version: 0.3.1
+  fancyline:
+    git: https://github.com/Papierkorb/fancyline.git
+    version: 0.3.2
+  retriable:
+    git: https://github.com/Sija/retriable.cr.git
+    version: 0.2.2
+  hardware:
+    git: https://github.com/crystal-community/hardware.git
+    version: 0.5.2
+  minion-common:
+    git: https://github.com/joshsoftware/minion-common.git
+    version: 0.2.3+git.commit.b92cba63457fffcf6f89061a46b47b6563c80481

@@ -28,8 +28,7 @@ module Minion
       def self.custom(telemetry)
         if File.exists?(telemetry.command) || Process.find_executable(telemetry.command)
           output = IO::Memory.new
-          Process.run("#{telemetry.command} \"${@}\"", shell: true, output: output, args: telemetry.args)
-
+          Process.run(%(#{telemetry.command} "${@}"), shell: true, output: output, args: telemetry.args)
           output.to_s.chomp
         else
           puts "Could not find #{telemetry.command}"
