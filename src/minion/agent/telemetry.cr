@@ -25,16 +25,6 @@ module Minion
         [] of Hash(String, String)
       end
 
-      def self.custom(telemetry)
-        if File.exists?(telemetry.command) || Process.find_executable(telemetry.command)
-          output = IO::Memory.new
-          Process.run(%(#{telemetry.command} "${@}"), shell: true, output: output, args: telemetry.args)
-          output.to_s.chomp
-        else
-          puts "Could not find #{telemetry.command}"
-        end
-      end
-
       def self.load_avg
         # Here we're only interested in the first number reported by loadavg
         # because we're going to report telemetry every so many seconds. That
@@ -54,7 +44,6 @@ module Minion
 
       def self.mem_in_use
         Hardware::Memory.new.used.to_f # kilobytes
-
       rescue exception
         # If no /proc, we're probably on MacOS, so fall back to sysctl/vm_stat
         # NOTE: This is for MacOS. I'm not sure on the accuracy of how I'm
@@ -79,6 +68,45 @@ module Minion
 
         # Return used memory in kilobytes
         ((pages_active.to_f + pages_wired.to_f + pages_compressed.to_f) * page_size.to_f) / 1024.0
+      end
+
+      def self.pickup_file(args)
+        pending_path = args["pending_path"] || '.'
+        processed_path = args["processed_path"]
+        match = args["match"] || /\.yml$/
+        parser = args["parser"] || pick_parser_from_matcher(match)
+
+        # Iterate through all files in the #{pending_path} to find
+        # those that match #{match}.
+        # Process them with #{parser}
+        # Move processed file to #{processed_path}
+        # Return processed data
+
+      end
+
+      def self.pick_parser_from_matcher(match)
+        from_match = [
+          {"foo.json", "json"},
+          {"foo.yml", "yaml"},
+          {"foo.csv", "csv"},
+        ].select do |pair|
+          filename, _ = pair
+          filename =~ match
+        end.first
+
+        from_match ? from_match.last : nil
+      end
+
+      # Execute an external command with the supplied arguments, returning that
+      # command's STDOUT.
+      def self.custom(telemetry)
+        if File.exists?(telemetry.command) || Process.find_executable(telemetry.command)
+          output = IO::Memory.new
+          Process.run(%(#{telemetry.command} "${@}"), shell: true, output: output, args: telemetry.args)
+          output.to_s.chomp
+        else
+          puts "Could not find #{telemetry.command}"
+        end
       end
     end
   end

@@ -14,7 +14,7 @@ shards:
 
   minion-common:
     git: https://github.com/joshsoftware/minion-common.git
-    version: 0.2.1+git.commit.650a431ef1b1a0cff7eb5b6813061890593ab9df
+    version: 0.3.0+git.commit.aedc158738c77d7111adba676cd672918acc3d5f
 
   msgpack:
     git: https://github.com/crystal-community/msgpack-crystal.git
@@ -23,8 +23,4 @@ shards:
   retriable:
     git: https://github.com/Sija/retriable.cr.git
     version: 0.2.2
-
-  zstd:
-    git: https://github.com/didactic-drunk/zstd.cr.git
-    version: 1.1.1
 

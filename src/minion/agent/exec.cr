@@ -10,7 +10,7 @@ module Minion
 
       Minion::Agent.startup(cfg)
 
-      ss = Minion::Client.new(
+      minion_client = Minion::Client.new(
         host: cfg.streamserver_host,
         port: cfg.streamserver_port,
         group: cfg.group_id,
@@ -19,53 +19,86 @@ module Minion
         command_runner: ::Minion::Agent::CommandExecutor
       )
 
-      ::Minion::Agent::CommandExecutor.client = ss
+      ::Minion::Agent::CommandExecutor.client = minion_client
 
-      spawn name: "telemetry" do
+      spawn name: "builtin-telemetry" do
         start_at = Time.monotonic
 
         loop do
-          # Report memory usage
-          spawn name: "memory" do
-            mem = Telemetry.mem_in_use
-            ss.send("T", UUID.new, ["mem_used_kb", mem.to_s])
+          cfg.builtin_telemetries.each do |builtin_telemetry|
+            if builtin_telemetry.is_a?(Minion::Config::BuiltinTelemetry)
+              label = builtin_telemetry.label
+              args = builtin_telemetry.arguments
+            else
+              label = builtin_telemetry
+              args = nil
+            end
+
+            case label.downcase
+            when "memory"
+              spawn_memory_telemetry(minion_client, args)
+            when "load_avg"
+              spawn_load_avg_telemetry(minion_client, args)
+            when "disk_usage"
+              spawn_disk_usage_telemetry(minion_client, args)
+            end
           end
 
-          # Report CPU usage
-          spawn name: "load_avg" do
-            loadavg = Telemetry.load_avg
-            ss.send("T", UUID.new, ["load_avg", loadavg])
-          end
-
-          spawn name: "disk_usage" do
-            ss.send("T", UUID.new, {"disk_usage" => Telemetry.disk_usage})
-          end
-
-          # swap
-          sleep (60 - ((Time.monotonic - start_at).to_f % 60.0)) # Avoid clock creep from fixed sleep intervals.
+          sleep (cfg.telemetry_interval.to_f - ((Time.monotonic - start_at).to_f % cfg.telemetry_interval.to_f)) # Avoid clock creep from fixed sleep intervals.
         end
       end
 
-      unless cfg.telemetries.nil?
-        cfg.telemetries.not_nil!.each do |telemetry|
-          do_telemetry(client: ss, telemetry: telemetry)
+      custom_telemetry_list = cfg.telemetries
+      unless custom_telemetry_list.nil?
+        custom_telemetry_list.each do |telemetry|
+          do_telemetry(client: minion_client, telemetry: telemetry)
         end
       end
 
       # Tail logs and report new lines
-      unless cfg.tail_logs.nil?
-        cfg.tail_logs.not_nil!.each do |service|
-          do_log(client: ss, service: service)
+      custom_tail_logs = cfg.tail_logs
+      unless custom_tail_logs.nil?
+        custom_tail_logs.each do |service|
+          do_log(client: minion_client, service: service)
         end
       end
 
       loop do
         sleep 1
+        # TODO: Implement this.
         # Listen for command dispatch
         # spawn name: "command" do
         #   # Execute command
         #   # Report stderr, stdout to ss
         # end
+      end
+    end
+
+    def self.spawn_memory_telemetry(minion_client, args)
+      # Report memory usage
+      spawn name: "memory" do
+        mem = Telemetry.mem_in_use
+        minion_client.send("T", UUID.new, ["mem_used_kb", mem.to_s])
+      end
+    end
+
+    def self.spawn_load_avg_telemetry(minion_client, args)
+      # Report CPU usage
+      spawn name: "load_avg" do
+        loadavg = Telemetry.load_avg
+        minion_client.send("T", UUID.new, ["load_avg", loadavg])
+      end
+    end
+
+    def self.spawn_disk_usage_telemetry(minion_client, args)
+      spawn name: "disk_usage" do
+        minion_client.send("T", UUID.new, {"disk_usage" => Telemetry.disk_usage})
+      end
+    end
+
+    def self.spawn_pickup_files_telemetry(minion_client, args)
+      spawn name: "pick_files" do
+        data = Telemetry.pick_files(args)
       end
     end
 
@@ -106,7 +139,7 @@ module Minion
               File.open(service.file) do |fh|
                 fh.seek(offset: 0, whence: IO::Seek::End) if seek_to_end
                 seek_to_end = true
-                buffer = String::Builder.new 
+                buffer = String::Builder.new
                 loop do
                   new_size = fh.size
                   if new_size < previous_file_size
@@ -136,8 +169,8 @@ module Minion
                   # at the original path does not exist, or that it exists, but it has a different inode.
                   if ((info.creation_time != fh.info.creation_time) &&
                      (info.modification_time == fh.info.modification_time)) ||
-                     ( !File.exists?(service.file) ||
-                       ( File.exists?(service.file) && (fh.info.inode != File.info(service.file).inode)))
+                     (!File.exists?(service.file) ||
+                     (File.exists?(service.file) && (fh.info.inode != File.info(service.file).inode)))
                     seek_to_end = false
                     break
                   end

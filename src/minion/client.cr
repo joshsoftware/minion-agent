@@ -48,10 +48,9 @@ module Minion
     def send(
       verb : String | Symbol = "",
       uuid : UUID | String = UUID.new,
-      #      data : PayloadType | Hash(String, String | Int32 | Float32) = [] of String
       data = [] of String
     )
-      data_to_send = uninitialized PayloadType
+      data_to_send = uninitialized PayloadType # dangerous
       if data.is_a?(String)
         data_to_send = [data]
       elsif data.is_a?(Hash)
@@ -201,7 +200,7 @@ module Minion
               send_command("heartbeat") do |frame|
                 heartbeat_received.send frame
               end
-    
+
               select
               when heartbeat_received.receive?
                 # The receive is mostly just accounting. If the send fails because of a failed
