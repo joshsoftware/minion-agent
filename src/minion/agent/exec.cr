@@ -25,6 +25,7 @@ module Minion
         start_at = Time.monotonic
 
         loop do
+          puts "looping telemetries with #{cfg.builtin_telemetries.inspect}"
           cfg.builtin_telemetries.each do |builtin_telemetry|
             if builtin_telemetry.is_a?(Minion::Config::BuiltinTelemetry)
               label = builtin_telemetry.label
@@ -41,6 +42,8 @@ module Minion
               spawn_load_avg_telemetry(minion_client, args)
             when "disk_usage"
               spawn_disk_usage_telemetry(minion_client, args)
+            when "pick_files"
+              spawn_pick_files_telemetry(minion_client, args)
             end
           end
 
@@ -96,7 +99,7 @@ module Minion
       end
     end
 
-    def self.spawn_pickup_files_telemetry(minion_client, args)
+    def self.spawn_pick_files_telemetry(minion_client, args)
       spawn name: "pick_files" do
         data = Telemetry.pick_files(args)
       end

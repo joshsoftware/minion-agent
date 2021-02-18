@@ -3,13 +3,13 @@ version: 1.0
 shards:
   msgpack:
     git: https://github.com/crystal-community/msgpack-crystal.git
-    version: 0.17.1
+    version: 0.17.2
   cute:
     git: https://github.com/Papierkorb/cute.git
     version: 0.3.1
   fancyline:
     git: https://github.com/Papierkorb/fancyline.git
-    version: 0.3.2
+    version: 0.3.3
   retriable:
     git: https://github.com/Sija/retriable.cr.git
     version: 0.2.2

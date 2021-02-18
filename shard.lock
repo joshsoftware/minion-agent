@@ -6,7 +6,7 @@ shards:
 
   fancyline:
     git: https://github.com/Papierkorb/fancyline.git
-    version: 0.3.2
+    version: 0.3.3
 
   hardware:
     git: https://github.com/crystal-community/hardware.git
@@ -18,7 +18,7 @@ shards:
 
   msgpack:
     git: https://github.com/crystal-community/msgpack-crystal.git
-    version: 0.17.1
+    version: 0.17.2
 
   retriable:
     git: https://github.com/Sija/retriable.cr.git

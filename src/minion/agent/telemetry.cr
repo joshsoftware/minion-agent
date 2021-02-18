@@ -70,31 +70,47 @@ module Minion
         ((pages_active.to_f + pages_wired.to_f + pages_compressed.to_f) * page_size.to_f) / 1024.0
       end
 
-      def self.pickup_file(args)
-        pending_path = args["pending_path"] || '.'
-        processed_path = args["processed_path"]
-        match = args["match"] || /\.yml$/
-        parser = args["parser"] || pick_parser_from_matcher(match)
+      def self.pick_files(my_args)
+        args = my_args.as(Hash)
+        pending_path = args.has_key?("pending_path") ? args["pending_path"].to_s : "."
+        processed_path = args.has_key?("processed_path") ? args["processed_path"].to_s : nil
+        match = args.has_key?("match") ? args["match"].to_s : "*.yml" rescue "*.yml"
+        parser = args.has_key?("parser") ? args["parser"].to_s : pick_parser_from_matcher(match)
 
         # Iterate through all files in the #{pending_path} to find
         # those that match #{match}.
-        # Process them with #{parser}
-        # Move processed file to #{processed_path}
-        # Return processed data
+        cwd = Dir.current
 
+        if Dir.exists?(pending_path)
+          Dir.cd(pending_path)
+          Dir.glob(patterns: [match], follow_symlinks: true).each do |file|
+            # Process them with #{parser}
+            case parser
+            when "yaml"
+              
+            when "json"
+            when "csv"
+            else
+            end
+            # Move processed file to #{processed_path}
+          end
+        end
+
+        Dir.cd(cwd) rescue nil
+        # Return processed data
       end
 
       def self.pick_parser_from_matcher(match)
         from_match = [
-          {"foo.json", "json"},
           {"foo.yml", "yaml"},
+          {"foo.json", "json"},
           {"foo.csv", "csv"},
         ].select do |pair|
           filename, _ = pair
-          filename =~ match
-        end.first
+          File.match?(pattern: match, path: filename)
+        end
 
-        from_match ? from_match.last : nil
+        from_match.any? ? from_match[0].last : nil
       end
 
       # Execute an external command with the supplied arguments, returning that
