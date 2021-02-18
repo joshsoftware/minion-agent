@@ -22,3 +22,6 @@ shards:
   zstd:
     git: https://github.com/didactic-drunk/zstd.cr.git
     version: 1.1.1
+  crystalizer:
+    git: https://github.com/j8r/crystalizer.git
+    version: 0.5.6

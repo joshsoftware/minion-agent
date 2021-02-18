@@ -85,12 +85,15 @@ module Minion
           Dir.cd(pending_path)
           Dir.glob(patterns: [match], follow_symlinks: true).each do |file|
             # Process them with #{parser}
-            case parser
+            data = case parser
             when "yaml"
-              
+              parse_from_yaml(file)
             when "json"
+              parse_from_json(file)
             when "csv"
+              parse_from_csv(file)
             else
+              parse_from_undefined(file)
             end
             # Move processed file to #{processed_path}
           end
@@ -98,6 +101,38 @@ module Minion
 
         Dir.cd(cwd) rescue nil
         # Return processed data
+      end
+
+      def parse_from_yaml(file)
+        begin
+          parsed = YAML.parse(File.read(file))
+
+          
+        rescue e : Exception
+          nil
+        end
+      end
+
+      def parse_from_json(file)
+        begin
+        rescue e : Exception
+          nil
+        end
+      end
+
+      def parse_from_csv(file)
+        begin
+        rescue e : Exception
+          nil
+        end
+      end
+
+      def parse_from_undefined(file)
+        begin
+          File.read(file)
+        rescue e : Exception
+          nil
+        end
       end
 
       def self.pick_parser_from_matcher(match)
