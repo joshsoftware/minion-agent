@@ -1,4 +1,8 @@
 require "hardware"
+require "yaml"
+require "json"
+require "crystalizer/yaml"
+require "crystalizer/json"
 
 module Minion
   class Agent
@@ -81,53 +85,77 @@ module Minion
         # those that match #{match}.
         cwd = Dir.current
 
+        data = [] of String
+
         if Dir.exists?(pending_path)
           Dir.cd(pending_path)
           Dir.glob(patterns: [match], follow_symlinks: true).each do |file|
             # Process them with #{parser}
-            data = case parser
-            when "yaml"
-              parse_from_yaml(file)
-            when "json"
-              parse_from_json(file)
-            when "csv"
-              parse_from_csv(file)
-            else
-              parse_from_undefined(file)
-            end
+            puts "Globber found #{file}"
+            interim_data = case parser
+                           when "yaml"
+                             parse_from_yaml(file)
+                           when "json"
+                             parse_from_json(file)
+                           when "csv"
+                             parse_from_csv(file)
+                           else
+                             parse_from_undefined(file)
+                           end
+            next if interim_data.nil?
+
+            data << interim_data
             # Move processed file to #{processed_path}
           end
         end
 
         Dir.cd(cwd) rescue nil
+
+        data
         # Return processed data
       end
 
-      def parse_from_yaml(file)
+      def self.parse_from_yaml(file)
+        puts "Reading #{file}"
         begin
-          parsed = YAML.parse(File.read(file))
+          raw_data = File.read(file)
+          parsed_yaml = Crystalizer::YAML.parse raw_data
 
-          
+          json_string = Crystalizer::JSON.serialize parsed_yaml
+
+          if !YAML.parse(raw_data).as_h?
+            json_string = "{ \"payload\": #{json_string}}"
+          end
+
+          puts "Sending #{json_string}"
+          json_string
         rescue e : Exception
           nil
         end
       end
 
-      def parse_from_json(file)
+      def self.parse_from_json(file)
+        begin
+          json_string = File.read(file)
+
+          if !JSON.parse(json_string).as_h?
+            json_string = "{ \"payload\": #{json_string}}"
+          end
+
+          json_string
+        rescue e : Exception
+          nil
+        end
+      end
+
+      def self.parse_from_csv(file)
         begin
         rescue e : Exception
           nil
         end
       end
 
-      def parse_from_csv(file)
-        begin
-        rescue e : Exception
-          nil
-        end
-      end
-
-      def parse_from_undefined(file)
+      def self.parse_from_undefined(file)
         begin
           File.read(file)
         rescue e : Exception

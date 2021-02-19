@@ -102,6 +102,9 @@ module Minion
     def self.spawn_pick_files_telemetry(minion_client, args)
       spawn name: "pick_files" do
         data = Telemetry.pick_files(args)
+        data.each do |item|
+          minion_client.send("T", UUID.new, "JSON:#{item}")
+        end
       end
     end
 
