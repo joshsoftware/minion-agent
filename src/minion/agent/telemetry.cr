@@ -1,6 +1,7 @@
 require "hardware"
 require "yaml"
 require "json"
+require "csv"
 require "crystalizer/yaml"
 require "crystalizer/json"
 
@@ -104,7 +105,13 @@ module Minion
                            end
             next if interim_data.nil?
 
-            data << interim_data
+            if interim_data.is_a?(Array)
+              interim_data.each do |row|
+                data << row
+              end
+            else
+              data << interim_data.to_s
+            end
             # Move processed file to #{processed_path}
           end
         end
@@ -149,10 +156,18 @@ module Minion
       end
 
       def self.parse_from_csv(file)
+        row_jsons = [] of String
+
         begin
+          csv = CSV.new(File.read(file), headers: true)
+
+          while csv.next
+            row_jsons << csv.row.to_h.to_json
+          end
         rescue e : Exception
           nil
         end
+        row_jsons
       end
 
       def self.parse_from_undefined(file)
