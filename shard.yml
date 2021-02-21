@@ -32,3 +32,6 @@ dependencies:
     github: joshsoftware/minion-common
   crystalizer:
     github: j8r/crystalizer
+  ameba:
+    github: crystal-ameba/ameba
+    version: ~> 0.13.0

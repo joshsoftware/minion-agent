@@ -9,42 +9,45 @@ module Minion
   class Agent
     class Telemetry
       def self.disk_usage
-        output = IO::Memory.new
-        Process.run(command: "df", args: ["-Pk"], output: output)
-        lines = output.to_s.chomp.split("\n")
-        keys = lines[0].split.map { |k| k.downcase }
-        keys.delete("on") # remove stray key since last column is "Mounted on"
-        values = lines[1..-1]
         df = [] of Hash(String, String)
-        values.each do |v|
-          tmp = v.split
-          if tmp[0] == "map" && tmp[1] == "auto_home"
-            # Delete the first index because it's a value with spaces in it
-            tmp.delete_at(0)
+        if Process.find_executable("df")
+          output = IO::Memory.new
+          Process.run(command: "df", args: ["-Pk"], output: output)
+          lines = output.to_s.chomp.split("\n")
+          keys = lines[0].split.map { |k| k.downcase }
+          keys.delete("on") # remove stray key since last column is "Mounted on"
+          values = lines[1..-1]
+          values.each do |v|
+            tmp = v.split
+            if tmp[0] == "map" && tmp[1] == "auto_home"
+              # Delete the first index because it's a value with spaces in it
+              tmp.delete_at(0)
+            end
+            df << Hash.zip(keys, tmp)
           end
-          df << Hash.zip(keys, tmp)
         end
-
         df
       rescue exception
         [] of Hash(String, String)
       end
 
       def self.load_avg
-        # Here we're only interested in the first number reported by loadavg
-        # because we're going to report telemetry every so many seconds. That
-        # means that eventually the longer-term load average statistics
-        # become usless since we already have that information.
-        #
-        # cat /proc/loadavg
-        # 0.00 0.00 0.00 1/221 4722
-        File.read("/proc/loadavg").split(" ").not_nil![0]
-      rescue exception
-        # Without procfs, we need to rely on sysctl -n vm.loadavg
-        # { 0.88 0.76 0.67 }
-        sysctl = IO::Memory.new
-        Process.run("sysctl -n vm.loadavg", shell: true, output: sysctl)
-        sysctl.to_s.split(" ").not_nil![1]
+        if File.exists?("/proc/loadavg")
+          # Here we're only interested in the first number reported by loadavg
+          # because we're going to report telemetry every so many seconds. That
+          # means that eventually the longer-term load average statistics
+          # become usless since we already have that information.
+          #
+          # cat /proc/loadavg
+          # 0.00 0.00 0.00 1/221 4722
+          File.read("/proc/loadavg").split(" ").not_nil![0]
+        else
+          # Without procfs, we need to rely on sysctl -n vm.loadavg
+          # { 0.88 0.76 0.67 }
+          sysctl = IO::Memory.new
+          Process.run("sysctl -n vm.loadavg", shell: true, output: sysctl)
+          sysctl.to_s.split(" ").not_nil![1]
+        end
       end
 
       def self.mem_in_use
@@ -76,50 +79,63 @@ module Minion
       end
 
       def self.pick_files(my_args)
+        cwd = Dir.current
+        data = [] of String
         args = my_args.as(Hash)
         pending_path = args.has_key?("pending_path") ? args["pending_path"].to_s : "."
         processed_path = args.has_key?("processed_path") ? args["processed_path"].to_s : nil
         match = args.has_key?("match") ? args["match"].to_s : "*.yml" rescue "*.yml"
         parser = args.has_key?("parser") ? args["parser"].to_s : pick_parser_from_matcher(match)
 
-        # Iterate through all files in the #{pending_path} to find
-        # those that match #{match}.
-        cwd = Dir.current
-
-        data = [] of String
-
         if Dir.exists?(pending_path)
           Dir.cd(pending_path)
           Dir.glob(patterns: [match], follow_symlinks: true).each do |file|
             # Process them with #{parser}
-            puts "Globber found #{file}"
-            interim_data = case parser
-                           when "yaml"
-                             parse_from_yaml(file)
-                           when "json"
-                             parse_from_json(file)
-                           when "csv"
-                             parse_from_csv(file)
-                           else
-                             parse_from_undefined(file)
-                           end
+            interim_data = parse_file(file, parser)
             next if interim_data.nil?
 
-            if interim_data.is_a?(Array)
-              interim_data.each do |row|
-                data << row
-              end
-            else
-              data << interim_data.to_s
-            end
-            # Move processed file to #{processed_path}
+            add_interim_data(data, interim_data)
+            move_file_to(processed_path, file)
           end
         end
 
         Dir.cd(cwd) rescue nil
 
         data
-        # Return processed data
+      end
+
+      private def self.add_interim_data(data, interim_data)
+        if interim_data.is_a?(Array)
+          interim_data.each do |row|
+            data << row
+          end
+        else
+          data << interim_data.to_s
+        end
+      end
+
+      private def self.parse_file(file, parser)
+        case parser
+        when "yaml"
+          parse_from_yaml(file)
+        when "json"
+          parse_from_json(file)
+        when "csv"
+          parse_from_csv(file)
+        else
+          parse_from_undefined(file)
+        end
+      end
+
+      private def self.move_file_to(processed_path, file)
+        if processed_path
+          new_filename = File.expand_path(File.join(processed_path, file))
+          Dir.mkdir_p(File.dirname(new_filename)) # ensure the destination exists
+          File.rename(
+            old_filename: file,
+            new_filename: new_filename
+          )
+        end
       end
 
       def self.parse_from_yaml(file)
@@ -142,40 +158,35 @@ module Minion
       end
 
       def self.parse_from_json(file)
-        begin
-          json_string = File.read(file)
+        json_string = File.read(file)
 
-          if !JSON.parse(json_string).as_h?
-            json_string = "{ \"payload\": #{json_string}}"
-          end
-
-          json_string
-        rescue e : Exception
-          nil
+        if !JSON.parse(json_string).as_h?
+          json_string = "{ \"payload\": #{json_string}}"
         end
+
+        json_string
+      rescue e : Exception
+        nil
       end
 
       def self.parse_from_csv(file)
         row_jsons = [] of String
 
-        begin
-          csv = CSV.new(File.read(file), headers: true)
+        csv = CSV.new(File.read(file), headers: true)
 
-          while csv.next
-            row_jsons << csv.row.to_h.to_json
-          end
-        rescue e : Exception
-          nil
+        while csv.next
+          row_jsons << csv.row.to_h.to_json
         end
+
         row_jsons
+      rescue e : Exception
+        nil
       end
 
       def self.parse_from_undefined(file)
-        begin
-          File.read(file)
-        rescue e : Exception
-          nil
-        end
+        File.read(file)
+      rescue e : Exception
+        nil
       end
 
       def self.pick_parser_from_matcher(match)

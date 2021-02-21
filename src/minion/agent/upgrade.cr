@@ -22,7 +22,7 @@ module Minion
       # 0. Define the root location for /opt/minion or wherever minion's install
       #    directory is located.
       exec_path = Path[Process.executable_path.not_nil!] # TODO: Under what conditions will Process.executable_path be nil?
-      filename = exec_path.basename
+      # base_filename = exec_path.basename
       version_dir = exec_path.parent
       root_dir = version_dir.parent
 

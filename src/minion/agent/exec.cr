@@ -2,8 +2,24 @@ require "./telemetry"
 require "./upgrade"
 require "minion-common/src/minion/monkeys/file_info"
 
+Minion::StatsRecord = Minion::Agent::Stats.new
+Minion::ConfigSource = ENV.has_key?("CONFIG") ? File.open(ENV["CONFIG"], "a+") : IO::Memory.new("---\n")
+
 module Minion
   class Agent
+    def self.exec
+      case CommandLine.parse
+      when "test"
+        test
+      when "upgrade"
+        upgrade!
+      when "version"
+        puts Minion::Agent::VERSION
+      else
+        run
+      end
+    end
+
     def self.run
       Minion::ConfigSource.rewind
       cfg = Minion::Config.from_yaml(Minion::ConfigSource.gets_to_end)
@@ -126,72 +142,86 @@ module Minion
         # then seek to the end of the file before monitoring it.
         # Otherwise, if it does not exist, then when it appears, start reading from the beginning.
         if File.exists?(service.file)
-          seek_to_end = true
+          seek_to_end = [true]
         else
-          seek_to_end = false
+          seek_to_end = [false]
         end
 
-        loop do
-          begin
-            # Wrap the whole thing in an exception handler, so on error it just...tries again.
-            # The code needs to check the _creation_date_ of the file periodically. If it
-            # changes from the original, that indicates that the file has been moved. If that
-            # happens, finish reading, and then close and reopen.
-            # It also needs to check file size. If file size _shrinks_, then the file has
-            # been truncated. Seek back to the beginning and start reading.
-            if File.exists?(service.file)
-              info = File.info(service.file)
-              previous_file_size = File.size(service.file)
-              File.open(service.file) do |fh|
-                fh.seek(offset: 0, whence: IO::Seek::End) if seek_to_end
-                seek_to_end = true
-                buffer = String::Builder.new
-                loop do
-                  new_size = fh.size
-                  if new_size < previous_file_size
-                    seek_to_end = false
-                    break
-                  else
-                    previous_file_size = new_size
-                  end
+        monitor_log(client, service, seek_to_end)
+      end
+    end
 
-                  # It is possible in some cases for a partial write to get read before the full
-                  # line is written. So the agent can never assume that it has received the full
-                  # line until the \n is found at the end of it.
-                  while chunk = fh.gets(delimiter: '\n')
-                    if chunk
-                      buffer << chunk.chomp
-                      if chunk.not_nil![-1] == '\n'
-                        client.send(verb: "L", data: [service.service, buffer.to_s])
-                        buffer = String::Builder.new
-                      end
-                    end
-                  end
-
-                  # Detecting efficiently whether a file has moved or not seems to be a bit quirky.
-                  # CTime changes when the file is moved, but CTime can also change if a file is simply
-                  # appended to. So, the current algorithm is to check for a CTime change without any
-                  # MTime change, and THEN to do a belt and suspenders test by checking that either a file
-                  # at the original path does not exist, or that it exists, but it has a different inode.
-                  if ((info.creation_time != fh.info.creation_time) &&
-                     (info.modification_time == fh.info.modification_time)) ||
-                     (!File.exists?(service.file) ||
-                     (File.exists?(service.file) && (fh.info.inode != File.info(service.file).inode)))
-                    seek_to_end = false
-                    break
-                  end
-
-                  sleep 0.5
+    private def self.monitor_log(client, service, seek_to_end)
+      loop do
+        begin
+          # Wrap the whole thing in an exception handler, so on error it just...tries again.
+          # The code needs to check the _creation_date_ of the file periodically. If it
+          # changes from the original, that indicates that the file has been moved. If that
+          # happens, finish reading, and then close and reopen.
+          # It also needs to check file size. If file size _shrinks_, then the file has
+          # been truncated. Seek back to the beginning and start reading.
+          if File.exists?(service.file)
+            info = File.info(service.file)
+            previous_file_size = File.size(service.file)
+            File.open(service.file) do |fh|
+              fh.seek(offset: 0, whence: IO::Seek::End) if seek_to_end.first
+              seek_to_end = [true]
+              buffer = String::Builder.new
+              loop do
+                new_size = fh.size
+                if new_size < previous_file_size
+                  seek_to_end = [false]
+                  break
+                else
+                  previous_file_size = new_size
                 end
+
+                read_log(service, client, fh, buffer)
+
+                break if file_moved?(service, info, fh, seek_to_end)
+
+                sleep 0.5
               end
-            else
-              sleep 1
             end
-          rescue ex : Exception
-            msg = "Error during logging: #{ex}\n#{ex.backtrace.join("\n")}\n"
-            puts msg
+          else
+            sleep 1
+          end
+        rescue ex : Exception
+          msg = "Error during log following: #{ex}\n#{ex.backtrace.join("\n")}\n"
+          puts msg
+        end
+      end
+    end
+
+    private def self.read_log(service, client, fh, buffer)
+      # It is possible in some cases for a partial write to get read before the full
+      # line is written. So the agent can never assume that it has received the full
+      # line until the \n is found at the end of it.
+      while chunk = fh.gets(delimiter: '\n')
+        if chunk
+          buffer << chunk.chomp
+          if chunk.not_nil![-1] == '\n'
+            client.send(verb: "L", data: [service.service, buffer.to_s])
+            buffer = String::Builder.new
           end
         end
+      end
+    end
+
+    private def self.file_moved?(service, info, fh, seek_to_end)
+      # Detecting efficiently whether a file has moved or not seems to be a bit quirky.
+      # CTime changes when the file is moved, but CTime can also change if a file is simply
+      # appended to. So, the current algorithm is to check for a CTime change without any
+      # MTime change, and THEN to do a belt and suspenders test by checking that either a file
+      # at the original path does not exist, or that it exists, but it has a different inode.
+      if ((info.creation_time != fh.info.creation_time) &&
+         (info.modification_time == fh.info.modification_time)) ||
+         (!File.exists?(service.file) ||
+         (File.exists?(service.file) && (fh.info.inode != File.info(service.file).inode)))
+        seek_to_end[0] = false
+        true
+      else
+        false
       end
     end
   end

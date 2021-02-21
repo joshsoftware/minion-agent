@@ -14,8 +14,7 @@ module Minion
       getter telemetries_sent : UInt64
 
       def initialize
-        @start = Time.utc
-        @start_monotonic = Time.monotonic
+        @start, @start_monotonic = get_times
         @connections = 0_u64
         @commands_received = 0_u64
         @commands_external = 0_u64
@@ -23,7 +22,6 @@ module Minion
         @commands_error = 0_u64
         @logs_sent = 0_u64
         @telemetries_sent = 0_u64
-        @now = Time.utc
       end
 
       def set_start_time
@@ -48,6 +46,10 @@ module Minion
 
       def increment_commands_internal
         @commands_internal += 1
+      end
+
+      def increment_commands_error
+        @commands_error += 1
       end
 
       def increment_logs_sent

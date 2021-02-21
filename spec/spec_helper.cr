@@ -1,2 +1,4 @@
 require "spec"
-require "../src/minion/uuid"
+require "minion-common"
+require "../src/minion/client"
+require "../src/minion/agent/*"
