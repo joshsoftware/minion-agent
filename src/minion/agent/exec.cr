@@ -96,16 +96,14 @@ module Minion
     def self.spawn_memory_telemetry(minion_client, args)
       # Report memory usage
       spawn name: "memory" do
-        mem = Telemetry.mem_in_use
-        minion_client.send("T", UUID.new, ["mem_used_kb", mem.to_s])
+        minion_client.send("T", UUID.new, ["mem_used_kb", Telemetry.mem_in_use])
       end
     end
 
     def self.spawn_load_avg_telemetry(minion_client, args)
       # Report CPU usage
       spawn name: "load_avg" do
-        loadavg = Telemetry.load_avg
-        minion_client.send("T", UUID.new, ["load_avg", loadavg])
+        minion_client.send("T", UUID.new, ["load_avg", Telemetry.load_avg])
       end
     end
 

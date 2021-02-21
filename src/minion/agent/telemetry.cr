@@ -8,9 +8,16 @@ require "crystalizer/json"
 module Minion
   class Agent
     class Telemetry
+      def self.disk_usage?
+        Process.find_executable("df") &&
+          Process.run(command: "df", args: ["-Pk"]).success?
+      rescue
+        false
+      end
+
       def self.disk_usage
         df = [] of Hash(String, String)
-        if Process.find_executable("df")
+        if disk_usage?
           output = IO::Memory.new
           Process.run(command: "df", args: ["-Pk"], output: output)
           lines = output.to_s.chomp.split("\n")
@@ -27,55 +34,81 @@ module Minion
           end
         end
         df
-      rescue exception
+      rescue
         [] of Hash(String, String)
       end
 
+      def self.load_avg?
+        File.exists?("/proc/loadavg") ||
+          (Process.find_executable("sysctl") && Process.run("sysctl -n vm.loadavg", shell: true).success?)
+      rescue
+        false
+      end
+
       def self.load_avg
-        if File.exists?("/proc/loadavg")
-          # Here we're only interested in the first number reported by loadavg
-          # because we're going to report telemetry every so many seconds. That
-          # means that eventually the longer-term load average statistics
-          # become usless since we already have that information.
-          #
-          # cat /proc/loadavg
-          # 0.00 0.00 0.00 1/221 4722
-          File.read("/proc/loadavg").split(" ").not_nil![0]
-        else
-          # Without procfs, we need to rely on sysctl -n vm.loadavg
-          # { 0.88 0.76 0.67 }
-          sysctl = IO::Memory.new
-          Process.run("sysctl -n vm.loadavg", shell: true, output: sysctl)
-          sysctl.to_s.split(" ").not_nil![1]
+        load_avg = ""
+        if load_avg?
+          if File.exists?("/proc/loadavg")
+            # Here we're only interested in the first number reported by loadavg
+            # because we're going to report telemetry every so many seconds. That
+            # means that eventually the longer-term load average statistics
+            # become usless since we already have that information.
+            #
+            # cat /proc/loadavg
+            # 0.00 0.00 0.00 1/221 4722
+            values = File.read("/proc/loadavg").split(" ")
+            load_avg = values[0]?.to_s
+          else
+            # Without procfs, we need to rely on sysctl -n vm.loadavg
+            # { 0.88 0.76 0.67 }
+            sysctl = IO::Memory.new
+            Process.run("sysctl -n vm.loadavg", shell: true, output: sysctl)
+            values = sysctl.to_s.split(" ")
+            load_avg = values[1]?.to_s
+          end
         end
+        load_avg
+      end
+
+      def self.mem_in_use?
+        File.exists?("/proc/meminfo") ||
+          (Process.find_executable("vm_stat") && Process.run("vm_stat", shell: true))
       end
 
       def self.mem_in_use
-        Hardware::Memory.new.used.to_f # kilobytes
-      rescue exception
-        # If no /proc, we're probably on MacOS, so fall back to sysctl/vm_stat
-        # NOTE: This is for MacOS. I'm not sure on the accuracy of how I'm
-        # measuring this, so this can be a "TODO" to clean this up later with
-        # better measurements from vm_stat.
-        cmd = "vm_stat"
-        vm_stat = IO::Memory.new
-        Process.run(cmd, shell: true, output: vm_stat)
-        pages_active : Int32 = vm_stat.to_s.match(/Pages active\:\s*(\d*)/)
-          .not_nil![1].to_i.not_nil!
-        page_size : Int32 = vm_stat.to_s.match(/\(page size of (\d*) bytes\)/)
-          .not_nil![1].to_i.not_nil!
-        pages_wired : Int32 = vm_stat.to_s.match(/Pages wired down\:\s*(\d*)/)
-          .not_nil![1].to_i.not_nil!
-        pages_compressed : Int32 = vm_stat.to_s.match(/Pages stored in compressor\:\s*(\d*)/)
-          .not_nil![1].to_i.not_nil!
+        mem = ""
+        if mem_in_use?
+          if File.exists?("/proc/meminfo")
+            mem = Hardware::Memory.new.used.to_f.to_s # kilobytes
+          else
+            # If no /proc, we're probably on MacOS, so fall back to sysctl/vm_stat
+            # NOTE: This is for MacOS. I'm not sure on the accuracy of how I'm
+            # measuring this, so this can be a "TODO" to clean this up later with
+            # better measurements from vm_stat.
+            cmd = "vm_stat"
+            vm_stat = IO::Memory.new
+            Process.run(cmd, shell: true, output: vm_stat)
+            pages_active : Int32 = vm_stat.to_s.match(/Pages active\:\s*(\d*)/)
+              .not_nil![1].to_i.not_nil!
+            page_size : Int32 = vm_stat.to_s.match(/\(page size of (\d*) bytes\)/)
+              .not_nil![1].to_i.not_nil!
+            pages_wired : Int32 = vm_stat.to_s.match(/Pages wired down\:\s*(\d*)/)
+              .not_nil![1].to_i.not_nil!
+            pages_compressed : Int32 = vm_stat.to_s.match(/Pages stored in compressor\:\s*(\d*)/)
+              .not_nil![1].to_i.not_nil!
 
-        # Now we multiply the number of pages (active and wired) by the page
-        # size to find out roughly how many bytes of memory are in use. We
-        # could get maximum memory from sysctl -n hw.memsize but it's not as
-        # important as knowing how much is *in use* and seeing that trend.
+            # Now we multiply the number of pages (active and wired) by the page
+            # size to find out roughly how many bytes of memory are in use. We
+            # could get maximum memory from sysctl -n hw.memsize but it's not as
+            # important as knowing how much is *in use* and seeing that trend.
 
-        # Return used memory in kilobytes
-        ((pages_active.to_f + pages_wired.to_f + pages_compressed.to_f) * page_size.to_f) / 1024.0
+            # Return used memory in kilobytes
+            mem = (((pages_active.to_f + pages_wired.to_f + pages_compressed.to_f) * page_size.to_f) / 1024.0).to_s
+          end
+        end
+        mem
+      rescue
+        ""
       end
 
       def self.pick_files(my_args)
@@ -205,7 +238,7 @@ module Minion
       # Execute an external command with the supplied arguments, returning that
       # command's STDOUT.
       def self.custom(telemetry)
-        if File.exists?(telemetry.command) || Process.find_executable(telemetry.command)
+        if Process.find_executable(telemetry.command) || File.exists?(telemetry.command)
           output = IO::Memory.new
           Process.run(%(#{telemetry.command} "${@}"), shell: true, output: output, args: telemetry.args)
           output.to_s.chomp
