@@ -165,7 +165,56 @@ describe Minion::Agent::Telemetry do
     from_path = File.expand_path(File.join(__DIR__, "from"))
     to_path = File.expand_path(File.join(__DIR__, "to"))
 
-    File.copy(src: File.join(data_path,"*"), dst: from_path)
-    File.delete(path: File.join(to_path,"*"))
+    # Setup our files to pickup.
+    Dir.glob(File.join(data_path, "*")).each do |file|
+      File.copy(src: file, dst: File.join(from_path, File.basename(file)))
+    end
+
+    # Ensure that our destination is empty of the files that are to be picked up.
+    Dir.glob(File.join(to_path, "*")).each do |file|
+      File.delete(path: file)
+    end
+
+    all_data = Minion::Agent::Telemetry.pick_files({
+      pending_path:   from_path,
+      processed_path: to_path,
+      match:          "*",
+    })
+
+    all_data.size.should eq 6
+
+    all_data.select do |row|
+      row == <<-JSON
+      {
+        "foo": {
+          "bar": {
+            "baz": [
+              "qux",
+              "fox"
+            ]
+          }
+        }
+      }
+      JSON
+    end.size.should eq 2
+
+    all_data.select do |row|
+      row == "I am just a random plonk of text."
+    end.size.should eq 1
+
+    all_data.select do |row|
+      row == %({"one":"1","two":"2","three":"3"}) ||
+      row == %({"one":"a","two":"b","three":"c"}) ||
+      row == %({"one":"you","two":"and","three":"me"})
+    end.size.should eq 3
+
+    # All of the files were moved?
+    Dir.glob(File.join(to_path, "*")).size.should eq 4
+
+    # Cleanup
+    Dir.glob(File.join(to_path, "*")).each do |file|
+      File.delete(file)
+    end
+
   end
 end

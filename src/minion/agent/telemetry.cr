@@ -111,10 +111,10 @@ module Minion
         ""
       end
 
-      def self.pick_files(my_args)
+      def self.pick_files(my_args) : Array(String)?
         cwd = Dir.current
         data = [] of String
-        args = my_args.as(Hash)
+        args = my_args.as(NamedTuple)
         pending_path = args.has_key?("pending_path") ? args["pending_path"].to_s : "."
         processed_path = args.has_key?("processed_path") ? args["processed_path"].to_s : nil
         match = args.has_key?("match") ? args["match"].to_s : "*.yml" rescue "*.yml"
@@ -123,7 +123,7 @@ module Minion
           Dir.cd(pending_path)
           Dir.glob(patterns: [match], follow_symlinks: true).each do |file|
             # Process them with #{parser}
-            parser = args.has_key?("parser") ? args["parser"].to_s : pick_parser_from_matcher(file)
+            parser = args.has_key?("parser") ? args["parser"]?.to_s : pick_parser_from_matcher(file)
             interim_data = parse_file(file, parser)
             next if interim_data.nil?
 
