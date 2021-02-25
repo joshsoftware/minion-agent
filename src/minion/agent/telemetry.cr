@@ -45,8 +45,8 @@ module Minion
         false
       end
 
-      def self.load_avg
-        load_avg = ""
+      def self.load_avg : String
+        load = ""
         if load_avg?
           if File.exists?("/proc/loadavg")
             # Here we're only interested in the first number reported by loadavg
@@ -57,17 +57,17 @@ module Minion
             # cat /proc/loadavg
             # 0.00 0.00 0.00 1/221 4722
             values = File.read("/proc/loadavg").split(" ")
-            load_avg = values[0]?.to_s
+            load = values[0]?
           else
             # Without procfs, we need to rely on sysctl -n vm.loadavg
             # { 0.88 0.76 0.67 }
             sysctl = IO::Memory.new
             Process.run("sysctl -n vm.loadavg", shell: true, output: sysctl)
             values = sysctl.to_s.split(" ")
-            load_avg = values[1]?.to_s
+            load = values[1]?
           end
         end
-        load_avg
+        load.to_s
       end
 
       def self.mem_in_use?
@@ -118,12 +118,12 @@ module Minion
         pending_path = args.has_key?("pending_path") ? args["pending_path"].to_s : "."
         processed_path = args.has_key?("processed_path") ? args["processed_path"].to_s : nil
         match = args.has_key?("match") ? args["match"].to_s : "*.yml" rescue "*.yml"
-        parser = args.has_key?("parser") ? args["parser"].to_s : pick_parser_from_matcher(match)
 
         if Dir.exists?(pending_path)
           Dir.cd(pending_path)
           Dir.glob(patterns: [match], follow_symlinks: true).each do |file|
             # Process them with #{parser}
+            parser = args.has_key?("parser") ? args["parser"].to_s : pick_parser_from_matcher(file)
             interim_data = parse_file(file, parser)
             next if interim_data.nil?
 
@@ -147,7 +147,11 @@ module Minion
         end
       end
 
-      private def self.parse_file(file, parser)
+      def self.parse_file(file, parser = nil)
+        if parser.nil?
+          parser = pick_parser_from_matcher(file)
+        end
+
         case parser
         when "yaml"
           parse_from_yaml(file)
@@ -171,8 +175,7 @@ module Minion
         end
       end
 
-      def self.parse_from_yaml(file)
-        puts "Reading #{file}"
+      private def self.parse_from_yaml(file)
         begin
           raw_data = File.read(file)
           parsed_yaml = Crystalizer::YAML.parse raw_data
@@ -183,26 +186,25 @@ module Minion
             json_string = "{ \"payload\": #{json_string}}"
           end
 
-          puts "Sending #{json_string}"
-          json_string
+          json_string.chomp
         rescue e : Exception
           nil
         end
       end
 
-      def self.parse_from_json(file)
+      private def self.parse_from_json(file)
         json_string = File.read(file)
 
         if !JSON.parse(json_string).as_h?
           json_string = "{ \"payload\": #{json_string}}"
         end
 
-        json_string
+        json_string.chomp
       rescue e : Exception
         nil
       end
 
-      def self.parse_from_csv(file)
+      private def self.parse_from_csv(file) : Array(String)?
         row_jsons = [] of String
 
         csv = CSV.new(File.read(file), headers: true)
@@ -217,33 +219,39 @@ module Minion
       end
 
       def self.parse_from_undefined(file)
-        File.read(file)
+        File.read(file).chomp
       rescue e : Exception
         nil
       end
 
-      def self.pick_parser_from_matcher(match)
+      # Takes a File matcher pattern and uses it to try to determine
+      # which type of parser to use for that match.
+      def self.pick_parser_from_matcher(filename)
         from_match = [
-          {"foo.yml", "yaml"},
-          {"foo.json", "json"},
-          {"foo.csv", "csv"},
+          {"**.yml", "yaml"},
+          {"**.json", "json"},
+          {"**.csv", "csv"},
         ].select do |pair|
-          filename, _ = pair
-          File.match?(pattern: match, path: filename)
+          pattern, _ = pair
+          File.match?(pattern: pattern, path: filename)
         end
 
         from_match.any? ? from_match[0].last : nil
       end
 
+      private def self.custom?(command)
+        Process.find_executable(command) || File.exists?(command)
+      end
+
       # Execute an external command with the supplied arguments, returning that
       # command's STDOUT.
       def self.custom(telemetry)
-        if Process.find_executable(telemetry.command) || File.exists?(telemetry.command)
+        if custom?(telemetry.command)
           output = IO::Memory.new
           Process.run(%(#{telemetry.command} "${@}"), shell: true, output: output, args: telemetry.args)
           output.to_s.chomp
         else
-          puts "Could not find #{telemetry.command}"
+          ""
         end
       end
     end
