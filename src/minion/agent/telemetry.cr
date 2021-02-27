@@ -114,7 +114,12 @@ module Minion
       def self.pick_files(my_args) : Array(String)?
         cwd = Dir.current
         data = [] of String
-        args = my_args.as(NamedTuple)
+        if my_args.is_a?(NamedTuple)
+          args = my_args.to_h
+        else
+          args = my_args.as(Hash)
+        end
+
         pending_path = args.has_key?("pending_path") ? args["pending_path"].to_s : "."
         processed_path = args.has_key?("processed_path") ? args["processed_path"].to_s : nil
         match = args.has_key?("match") ? args["match"].to_s : "*.yml" rescue "*.yml"
